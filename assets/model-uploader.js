@@ -1218,7 +1218,7 @@
     // 第一步：批量上传文件到Shopify Files
     let uploadResults = [];
     try {
-      const API_BASE = window.QUOTES_API_BASE || 'shopify-test-brown.vercel.app/api';
+      const API_BASE = window.QUOTES_API_BASE || 'https://shopify-test-brown.vercel.app/api';
       
       console.log('📤 调用多文件上传API...');
       console.log('API_BASE:', API_BASE);
@@ -1258,7 +1258,7 @@
     
     // 第二步：创建草稿订单
     try {
-      const API_BASE = 'shopify-test-brown.vercel.app/api';
+      const API_BASE = 'https://shopify-test-brown.vercel.app/api';
       
       // 准备询价提交数据
       const requestBody = {
@@ -1602,7 +1602,7 @@
 
     // 追加：同步到 Vercel 后端（Metaobject: quote）
     try {
-      const base = (window.QUOTES_API_BASE || 'shopify-test-brown.vercel.app/api').replace(/\/$/, '');
+      const base = (window.QUOTES_API_BASE || 'https://shopify-test-brown.vercel.app/api').replace(/\/$/, '');
       
       // 确保 API 基础地址正确
       if (!window.QUOTES_API_BASE) {
