@@ -241,7 +241,7 @@ Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ACCESS_TOKEN
 curl http://localhost:3000/api/quotes
 
 # 测试生产环境
-curl shopify-test-brown.vercel.app/api/quotes
+curl shopify-test-git-issac-branch-sheepxixis-projects.vercel.app/api/quotes
 ```
 
 如果返回错误信息包含 "Missing" 或 "Access denied"，说明配置有问题。

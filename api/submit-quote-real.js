@@ -1,6 +1,6 @@
 import { setCorsHeaders } from './cors-config.js';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-test-brown.vercel.app';
+const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-test-git-issac-branch-sheepxixis-projects.vercel.app';
 
 /**
  * ═══════════════════════════════════════════════════════════════

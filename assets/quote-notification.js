@@ -73,7 +73,7 @@ class QuoteNotificationSystem {
 
       // 从后端获取最新报价状态
       console.log('🔍 检查报价状态，UUID:', uuid);
-      const response = await fetch(`shopify-test-brown.vercel.app/api/quotes?handle=${encodeURIComponent(uuid)}`);
+      const response = await fetch(`shopify-test-git-issac-branch-sheepxixis-projects.vercel.app/api/quotes?handle=${encodeURIComponent(uuid)}`);
       
       if (!response.ok) {
         console.warn('⚠️ 无法获取报价状态:', uuid, '状态码:', response.status);

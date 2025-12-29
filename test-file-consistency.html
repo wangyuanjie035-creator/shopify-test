@@ -58,7 +58,7 @@
                 showResult('🔄 步骤1: 上传文件到 Shopify Files...', 'info');
                 
                 const fileData = await readFileAsBase64(file);
-                const uploadResponse = await fetch('shopify-test-brown.vercel.app/api/store-file-real', {
+                const uploadResponse = await fetch('shopify-test-git-issac-branch-sheepxixis-projects.vercel.app/api/store-file-real', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -90,7 +90,7 @@
                 // 步骤2: 下载文件
                 showResult('🔄 步骤2: 从 Shopify Files 下载文件...', 'info');
 
-                const downloadResponse = await fetch(`shopify-test-brown.vercel.app/api/download-file-real?id=${uploadResult.shopifyFileId}`);
+                const downloadResponse = await fetch(`shopify-test-git-issac-branch-sheepxixis-projects.vercel.app/api/download-file-real?id=${uploadResult.shopifyFileId}`);
                 
                 if (!downloadResponse.ok) {
                     throw new Error(`下载失败: ${downloadResponse.status}`);
