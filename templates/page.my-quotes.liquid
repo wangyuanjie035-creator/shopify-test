@@ -1,0 +1,1605 @@
+{% comment %}
+  草稿订单详情页
+  URL: /pages/my-quotes?id=<draftOrderId>
+  功能：显示草稿订单详情，客户可以查看报价并点击"立即下单"添加到购物车
+  安全：需要客户登录才能查看
+{% endcomment %}
+
+<!-- 客户登录检查 -->
+{% unless customer %}
+<div class="customer-login-required">
+  <div class="login-prompt-card">
+    <div class="login-prompt-icon">🔒</div>
+    <h2>需要登录</h2>
+    <p>请先登录您的账户以查看您的询价单</p>
+    <div class="login-actions">
+      <a href="/account/login?return_url={{ request.path | url_encode }}" class="login-link-btn primary">
+        <span class="btn-icon">🔐</span>
+        登录账户
+      </a>
+      <a href="/account/register?return_url={{ request.path | url_encode }}" class="login-link-btn secondary">
+        <span class="btn-icon">✨</span>
+        注册新账户
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .customer-login-required {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+  }
+
+  .login-prompt-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    padding: 50px 40px;
+    max-width: 450px;
+    width: 100%;
+    text-align: center;
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .login-prompt-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+  }
+
+  .login-prompt-card h2 {
+    color: #333;
+    font-size: 28px;
+    margin: 0 0 15px 0;
+  }
+
+  .login-prompt-card p {
+    color: #666;
+    font-size: 16px;
+    margin: 0 0 30px 0;
+    line-height: 1.6;
+  }
+
+  .login-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .login-link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .login-link-btn.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  .login-link-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+  }
+
+  .login-link-btn.secondary {
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+  }
+
+  .login-link-btn.secondary:hover {
+    background: #f8f9ff;
+    transform: translateY(-2px);
+  }
+</style>
+
+{% else %}
+<!-- 客户已登录，显示询价内容 -->
+<div class="customer-authenticated" data-customer-email="{{ customer.email }}">
+
+<style>
+  .quote-detail-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  
+  .quote-header {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  
+  .quote-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .refresh-btn {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .refresh-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+  }
+  
+    .refresh-btn:active {
+      transform: rotate(180deg);
+    }
+    
+    /* 订单列表样式 */
+    .orders-list-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .orders-list-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .orders-list-header h2 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .orders-list-header p {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .orders-list {
+      display: grid;
+      gap: 20px;
+    }
+    
+    .order-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .order-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-color: #007bff;
+    }
+    
+    .order-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .order-number {
+      font-weight: bold;
+      font-size: 16px;
+      color: #333;
+    }
+    
+    .order-status {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .order-card-body {
+      margin-bottom: 15px;
+    }
+    
+    .order-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .order-date {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .order-total {
+      font-weight: bold;
+      color: #e74c3c;
+      font-size: 16px;
+    }
+    
+    .order-items {
+      margin-top: 10px;
+    }
+    
+    .order-item {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    
+    .order-item-more {
+      color: #999;
+      font-size: 12px;
+      font-style: italic;
+    }
+    
+    .order-card-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    .order-card-actions .btn {
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .order-card-actions .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    
+    .order-card-actions .btn-primary:hover {
+      background: #0056b3;
+    }
+    
+    .order-card-actions .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .order-card-actions .btn-danger:hover {
+      background: #c82333;
+    }
+    
+    /* 空状态样式 */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    
+    .empty-state-content {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    
+    .empty-state h3 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .empty-state p {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    
+    .empty-state .btn {
+      padding: 12px 24px;
+      background: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: background 0.2s ease;
+    }
+    
+    .empty-state .btn:hover {
+      background: #0056b3;
+      color: white;
+    }
+  
+  .quote-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+  }
+  
+  .quote-meta {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .quote-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .quote-status {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  .status-pending {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .status-quoted {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  
+  .quote-items {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 24px;
+  }
+  
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f0f0f0;
+  }
+  
+  .item-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .item-card:last-child {
+    margin-bottom: 0;
+  }
+  
+  .item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  
+  .item-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  .item-price {
+    font-size: 24px;
+    font-weight: 600;
+    color: #e91e63;
+  }
+  
+  .item-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  .item-detail {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .detail-label {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  
+  .quote-summary {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 24px;
+  }
+  
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .summary-row:last-child {
+    border-bottom: none;
+    padding-top: 20px;
+    margin-top: 12px;
+    border-top: 2px solid #333;
+  }
+  
+  .summary-label {
+    font-size: 16px;
+    color: #666;
+  }
+  
+  .summary-value {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .summary-total {
+    font-size: 24px !important;
+    font-weight: 600 !important;
+    color: #e91e63 !important;
+  }
+  
+  .quote-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: flex-end;
+  }
+  
+  .btn {
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-secondary {
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #e0e0e0;
+  }
+  
+  .btn-secondary:hover {
+    background: #e0e0e0;
+  }
+  
+  .btn-primary {
+    background: #e91e63;
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    background: #c2185b;
+  }
+  
+  .btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+  }
+  
+  .loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #f0f0f0;
+    border-top: 4px solid #e91e63;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .error {
+    background: #ffebee;
+    color: #c62828;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #ef5350;
+    margin: 20px 0;
+  }
+  
+  @media (max-width: 768px) {
+    .quote-meta {
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .item-details {
+      grid-template-columns: 1fr;
+    }
+    
+    .quote-actions {
+      flex-direction: column;
+    }
+    
+    .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="quote-detail-container">
+  <div id="loading-state" class="loading">
+    <div class="loading-spinner"></div>
+    <p>正在加载订单详情...</p>
+  </div>
+  
+  <div id="error-state" style="display: none;">
+    <div class="error">
+      <p id="error-message"></p>
+    </div>
+    <div class="quote-actions">
+      <a href="/pages/model-uploader" class="btn btn-secondary">返回上传页面</a>
+      <button id="retry-create-btn" class="btn btn-primary" onclick="retryCreateOrder()" style="display: none;">重新创建订单</button>
+    </div>
+  </div>
+  
+  <div id="quote-detail" style="display: none;">
+    <div class="quote-header">
+      <div class="quote-title" id="order-number">订单 #--</div>
+      <div class="quote-actions">
+        <button id="refreshBtn" class="refresh-btn" onclick="refreshOrderStatus()" title="刷新订单状态">
+          🔄 刷新
+        </button>
+      </div>
+      <div class="quote-meta">
+        <div class="quote-meta-item">
+          <strong>状态:</strong>
+          <span class="quote-status" id="order-status">待报价</span>
+        </div>
+        <div class="quote-meta-item">
+          <strong>创建时间:</strong>
+          <span id="order-date">--</span>
+        </div>
+        <div class="quote-meta-item">
+          <strong>客户:</strong>
+          <span id="customer-name">--</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="quote-items">
+      <div class="section-title">订单项目</div>
+      <div id="items-list"></div>
+    </div>
+    
+    <div class="quote-summary">
+      <div class="section-title">费用汇总</div>
+      <div class="summary-row">
+        <span class="summary-label">小计</span>
+        <span class="summary-value" id="subtotal">$0.00</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">运费</span>
+        <span class="summary-value">待确定</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label summary-total">总计</span>
+        <span class="summary-value summary-total" id="total">$0.00</span>
+      </div>
+    </div>
+    
+    <div class="quote-actions">
+      <button class="btn btn-secondary" onclick="downloadAllFiles()">📥 下载文件</button>
+      <a href="/pages/model-uploader" class="btn btn-secondary">继续上传</a>
+      <button id="place-order-btn" class="btn btn-primary" onclick="placeOrder()">立即下单</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// API配置
+const API_BASE = 'https://shopify-13s4.vercel.app/api';
+const customerEmail = (document.querySelector('.customer-authenticated')?.dataset.customerEmail || '').toLowerCase();
+const ADMIN_EMAILS = ['jonathan.wang@sainstore.com'];
+const isAdmin = ADMIN_EMAILS.some(e => e.toLowerCase() === customerEmail);
+const authParams = () => isAdmin
+  ? `admin=1&email=${encodeURIComponent(customerEmail)}`
+  : `email=${encodeURIComponent(customerEmail)}`;
+const authQuery = authParams();
+
+// 从URL获取订单ID
+const urlParams = new URLSearchParams(window.location.search);
+const draftOrderId = urlParams.get('id');
+
+console.log('草稿订单ID:', draftOrderId);
+
+// 页面加载时获取订单详情
+document.addEventListener('DOMContentLoaded', async function() {
+  if (!customerEmail) {
+    showError('未能获取当前账户邮箱，无法加载询价单。请重新登录。');
+    return;
+  }
+  if (!draftOrderId) {
+    // 如果没有指定订单ID，显示所有订单列表
+    console.log('未指定订单ID，加载所有订单列表');
+    await loadAllOrders();
+    return;
+  }
+  
+  try {
+    await loadOrderDetails();
+    
+    // 设置定时刷新，每30秒检查一次订单状态更新
+    setInterval(() => {
+      console.log('⏰ 定时刷新订单状态...');
+      refreshOrderStatus();
+    }, 30000); // 30秒刷新一次
+  } catch (error) {
+    console.error('加载订单详情失败:', error);
+    showError('加载订单详情失败: ' + error.message);
+  }
+});
+
+// 刷新订单状态函数
+async function refreshOrderStatus() {
+  try {
+    console.log('🔄 刷新订单状态:', draftOrderId);
+    
+    // 直接查询最新的订单详情
+    const response = await fetch(`${API_BASE}/get-draft-order-simple?id=${encodeURIComponent(draftOrderId)}&${authQuery}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success && data.draftOrder) {
+        const newOrder = data.draftOrder;
+        const currentOrder = window.currentDraftOrder;
+        
+        // 检查是否有状态或价格变化
+        if (currentOrder) {
+          // 获取当前状态
+          const currentStatus = getOrderStatus(currentOrder);
+          const newStatus = getOrderStatus(newOrder);
+          
+          const statusChanged = currentStatus.text !== newStatus.text;
+          const priceChanged = currentOrder.totalPrice !== newOrder.totalPrice;
+          
+          // 也检查自定义属性中的状态变化
+          let customStatusChanged = false;
+          if (currentOrder.lineItems && newOrder.lineItems && 
+              currentOrder.lineItems.length > 0 && newOrder.lineItems.length > 0) {
+            const currentCustomStatus = currentOrder.lineItems[0].customAttributes?.find(a => a.key === '状态')?.value;
+            const newCustomStatus = newOrder.lineItems[0].customAttributes?.find(a => a.key === '状态')?.value;
+            customStatusChanged = currentCustomStatus !== newCustomStatus;
+          }
+          
+          if (statusChanged || priceChanged || customStatusChanged) {
+            console.log('📊 检测到订单更新:', {
+              statusChanged,
+              priceChanged,
+              customStatusChanged,
+              oldStatus: currentStatus.text,
+              newStatus: newStatus.text,
+              oldPrice: currentOrder.totalPrice,
+              newPrice: newOrder.totalPrice
+            });
+            
+            // 更新当前订单数据
+            window.currentDraftOrder = newOrder;
+            
+            // 重新渲染订单详情
+            renderOrderDetails(newOrder);
+            
+            // 显示更新通知
+            showSuccessMessage('订单状态已更新！', 3000);
+          }
+        } else {
+          // 如果没有当前订单数据，直接加载
+          window.currentDraftOrder = newOrder;
+          renderOrderDetails(newOrder);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ 刷新订单状态失败:', error);
+  }
+}
+
+// 加载订单详情
+async function loadOrderDetails() {
+  console.log('开始加载订单详情...');
+  console.log('草稿订单ID:', draftOrderId);
+  
+  try {
+    // 先检查所有草稿订单
+    console.log('检查所有草稿订单...');
+    const listResponse = await fetch(`${API_BASE}/get-draft-orders?${authQuery}`);
+    const listData = await listResponse.json();
+    console.log('草稿订单列表:', listData);
+    
+    if (listData.success && listData.draftOrders.length === 0) {
+      console.log('草稿订单列表为空，继续尝试直接查询...');
+      // 不要直接抛出错误，继续尝试直接查询
+    }
+    
+    // 查找匹配的订单
+    let foundOrder = null;
+    if (listData.success && listData.draftOrders.length > 0) {
+      console.log('搜索订单ID:', draftOrderId);
+      console.log('订单列表:', listData.draftOrders.map(o => ({ id: o.id, name: o.name })));
+      
+      foundOrder = listData.draftOrders.find(order => {
+        // 多种匹配方式
+        const matches = [
+          order.id === draftOrderId,
+          order.id === decodeURIComponent(draftOrderId),
+          order.name === draftOrderId,
+          order.name === decodeURIComponent(draftOrderId),
+          // 如果draftOrderId是数字ID，尝试匹配GID
+          order.id === `gid://shopify/DraftOrder/${draftOrderId}`,
+          order.id === `gid://shopify/DraftOrder/${decodeURIComponent(draftOrderId)}`,
+          // 提取GID中的数字部分进行匹配
+          order.id && order.id.includes(draftOrderId.replace(/\D/g, '')),
+          order.id && order.id.includes(decodeURIComponent(draftOrderId).replace(/\D/g, ''))
+        ];
+        
+        const isMatch = matches.some(match => match);
+        if (isMatch) {
+          console.log('✅ 找到匹配订单:', { 
+            searchId: draftOrderId, 
+            orderId: order.id, 
+            orderName: order.name 
+          });
+        }
+        return isMatch;
+      });
+      
+      if (foundOrder) {
+        console.log('在列表中找到订单:', foundOrder);
+        // 使用找到的订单数据
+        window.currentDraftOrder = foundOrder;
+        renderOrderDetails(foundOrder);
+        return;
+      } else {
+        console.log('❌ 在订单列表中未找到匹配的订单');
+      }
+    }
+    
+    // 如果列表中没有找到，尝试直接查询
+    console.log('尝试直接查询订单详情...');
+    const response = await fetch(`${API_BASE}/get-draft-order-simple?id=${encodeURIComponent(draftOrderId)}&${authQuery}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('草稿订单不存在，可能已被删除或从未创建。请重新提交询价。');
+      }
+      throw new Error(`API请求失败: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('订单详情:', data);
+    
+    if (!data.draftOrder) {
+      throw new Error('订单数据为空');
+    }
+    
+    // 保存订单数据到全局变量
+    window.currentDraftOrder = data.draftOrder;
+    
+    // 获取扩展状态信息
+    
+    // 渲染订单详情
+    renderOrderDetails(data.draftOrder);
+    
+  } catch (error) {
+    console.error('加载订单详情失败:', error);
+    throw error;
+  }
+}
+
+
+// 渲染订单详情
+function renderOrderDetails(order) {
+  console.log('渲染订单详情:', order);
+  
+  // 更新订单号
+  const orderNumberEl = document.getElementById('order-number');
+  orderNumberEl.textContent = `订单 #${order.name || order.id}`;
+  
+  // 更新状态
+  const statusEl = document.getElementById('order-status');
+  const status = getOrderStatus(order);
+  statusEl.textContent = status.text;
+  statusEl.className = `quote-status ${status.className}`;
+  
+  // 更新日期
+  const dateEl = document.getElementById('order-date');
+  dateEl.textContent = formatDate(order.createdAt);
+  
+  // 更新客户名称
+  const customerEl = document.getElementById('customer-name');
+  customerEl.textContent = order.email || '未知客户';
+  
+  // 渲染订单项目
+  const itemsList = document.getElementById('items-list');
+  itemsList.innerHTML = '';
+  
+  if (order.lineItems && order.lineItems.length > 0) {
+    order.lineItems.forEach(item => {
+      const itemCard = createItemCard(item);
+      itemsList.appendChild(itemCard);
+    });
+  }
+  
+  // 更新价格
+  updatePrices(order);
+  
+  // 更新按钮状态
+  updateButtonState(order);
+  
+  // 显示订单详情，隐藏加载状态
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('quote-detail').style.display = 'block';
+}
+
+// 创建订单项目卡片
+function createItemCard(item) {
+  const card = document.createElement('div');
+  card.className = 'item-card';
+  
+  // 获取价格：优先从 originalUnitPrice，其次从 price
+  let price = 0;
+  if (item.originalUnitPrice) {
+    price = parseFloat(item.originalUnitPrice);
+  } else if (item.price) {
+    price = parseFloat(item.price);
+  }
+  
+  const quantity = item.quantity || 1;
+  const itemTotal = price * quantity;
+  
+  console.log('项目价格:', { 
+    originalUnitPrice: item.originalUnitPrice, 
+    price: item.price, 
+    calculatedPrice: price,
+    quantity,
+    itemTotal
+  });
+  
+  // 获取自定义属性
+  const attrs = item.customAttributes || [];
+  const getAttribute = (key) => {
+    const attr = attrs.find(a => a.key === key);
+    return attr ? attr.value : '';
+  };
+  
+  card.innerHTML = `
+    <div class="item-header">
+      <div class="item-name">${item.title || '未命名项目'}</div>
+      <div class="item-price">${price > 0 ? `$${itemTotal.toFixed(2)}` : '待报价'}</div>
+    </div>
+    <div class="item-details">
+      <div class="item-detail">
+        <span class="detail-label">数量</span>
+        <span>${quantity}</span>
+      </div>
+      <div class="item-detail">
+        <span class="detail-label">材料</span>
+        <span>${getAttribute('材料') || '未指定'}</span>
+      </div>
+      <div class="item-detail">
+        <span class="detail-label">颜色与表面</span>
+        <span>${getAttribute('颜色与表面') || '自然色'}</span>
+      </div>
+      <div class="item-detail">
+        <span class="detail-label">精度等级</span>
+        <span>${getAttribute('精度等级') || '标准'}</span>
+      </div>
+      <div class="item-detail">
+        <span class="detail-label">公差标准</span>
+        <span>${getAttribute('公差标准') || 'GB/T 1804-2000 m级'}</span>
+      </div>
+      <div class="item-detail">
+        <span class="detail-label">表面粗糙度</span>
+        <span>${getAttribute('表面粗糙度') || 'Ra3.2'}</span>
+      </div>
+      ${getAttribute('备注') ? `
+      <div class="item-detail" style="grid-column: 1 / -1;">
+        <span class="detail-label">备注</span>
+        <span>${getAttribute('备注')}</span>
+      </div>
+      ` : ''}
+    </div>
+  `;
+  
+  return card;
+}
+
+// 更新价格
+function updatePrices(order) {
+  let subtotal = 0;
+  
+  // 优先从totalPrice获取
+  if (order.totalPrice) {
+    subtotal = parseFloat(order.totalPrice);
+    console.log('从order.totalPrice获取价格:', subtotal);
+  } 
+  // 如果没有totalPrice，尝试从lineItems计算
+  else if (order.lineItems && order.lineItems.length > 0) {
+    order.lineItems.forEach(item => {
+      const price = parseFloat(item.originalUnitPrice || item.price || 0);
+      const quantity = item.quantity || 1;
+      subtotal += price * quantity;
+    });
+    console.log('从lineItems计算价格:', subtotal);
+  }
+  
+  const formattedPrice = subtotal > 0 ? `$${subtotal.toFixed(2)}` : '待报价';
+  
+  document.getElementById('subtotal').textContent = formattedPrice;
+  document.getElementById('total').textContent = formattedPrice;
+  
+  console.log('价格显示:', formattedPrice);
+}
+
+// 更新按钮状态
+function updateButtonState(order) {
+  const placeOrderBtn = document.getElementById('place-order-btn');
+  
+  // 检查是否已报价
+  let isQuoted = false;
+  
+  // 优先检查自定义属性中的状态
+  if (order.lineItems && order.lineItems.length > 0) {
+    const firstItem = order.lineItems[0];
+    const attrs = firstItem.customAttributes || [];
+    const statusAttr = attrs.find(a => a.key === '状态');
+    
+    if (statusAttr && statusAttr.value === '已报价') {
+      isQuoted = true;
+      console.log('✅ 从自定义属性确认已报价');
+    }
+  }
+  
+  // 回退到检查totalPrice
+  if (!isQuoted) {
+    const totalPrice = parseFloat(order.totalPrice || 0);
+    if (totalPrice > 0) {
+      isQuoted = true;
+      console.log('✅ 从totalPrice确认已报价:', totalPrice);
+    }
+  }
+  
+  if (!isQuoted) {
+    placeOrderBtn.disabled = true;
+    placeOrderBtn.textContent = '等待报价';
+    placeOrderBtn.style.opacity = '0.6';
+    placeOrderBtn.style.cursor = 'not-allowed';
+    console.log('⏳ 按钮状态: 等待报价（禁用）');
+  } else {
+    placeOrderBtn.disabled = false;
+    placeOrderBtn.textContent = '立即下单';
+    placeOrderBtn.style.opacity = '1';
+    placeOrderBtn.style.cursor = 'pointer';
+    console.log('✅ 按钮状态: 立即下单（启用）');
+  }
+}
+
+// 获取订单状态
+function getOrderStatus(order) {
+  // 优先检查自定义属性中的状态
+  if (order.lineItems && order.lineItems.length > 0) {
+    const firstItem = order.lineItems[0];
+    const attrs = firstItem.customAttributes || [];
+    const statusAttr = attrs.find(a => a.key === '状态');
+    
+    if (statusAttr) {
+      const status = statusAttr.value;
+      console.log('从自定义属性获取状态:', status);
+      
+      if (status === '已报价') {
+        return {
+          text: '已报价',
+          className: 'status-quoted'
+        };
+      }
+    }
+  }
+  
+  // 回退到检查totalPrice
+  const totalPrice = parseFloat(order.totalPrice || 0);
+  console.log('从totalPrice判断状态:', totalPrice);
+  
+  if (totalPrice > 0) {
+    return {
+      text: '已报价',
+      className: 'status-quoted'
+    };
+  } else {
+    return {
+      text: '待报价',
+      className: 'status-pending'
+    };
+  }
+}
+
+// 格式化日期
+function formatDate(dateString) {
+  if (!dateString) return '--';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    console.error('日期格式化失败:', error);
+    return '--';
+  }
+}
+
+// 立即下单（添加到购物车）
+async function placeOrder() {
+  const order = window.currentDraftOrder;
+  
+  if (!order) {
+    alert('订单数据未加载，请刷新页面重试');
+    return;
+  }
+  
+  const totalPrice = parseFloat(order.totalPrice || 0);
+  
+  if (totalPrice <= 0) {
+    alert('订单尚未报价，请等待客服报价后再下单');
+    return;
+  }
+  
+  // 确认下单
+  if (!confirm(`确认将订单添加到购物车？\n\n总金额: $${totalPrice.toFixed(2)}\n\n点击确定后将跳转到购物车页面。`)) {
+    return;
+  }
+  
+  try {
+    console.log('开始添加到购物车...', order);
+    
+    // 准备购物车项目
+    const cartItems = [];
+    
+    if (order.lineItems && order.lineItems.length > 0) {
+      for (const item of order.lineItems) {
+        const attrs = item.customAttributes || [];
+        
+        // 构建properties对象
+        const properties = {
+          'Order Type': '3D Model Quote',
+          'Draft Order ID': draftOrderId,
+          'Quote Status': 'Quoted'
+        };
+        
+        // 添加所有自定义属性
+        attrs.forEach(attr => {
+          properties[attr.key] = attr.value;
+        });
+        
+        // 添加报价价格
+        properties['Quoted Price'] = String(item.price || 0);
+        
+        cartItems.push({
+          id: 0, // 使用无效的产品ID，触发获取真实产品ID的逻辑
+          quantity: item.quantity || 1,
+          properties: properties
+        });
+      }
+    }
+    
+    console.log('准备添加到购物车:', cartItems);
+    
+    // 检查是否有有效的产品ID
+    const hasValidProductId = cartItems.some(item => item.id && item.id !== 0);
+    
+    if (!hasValidProductId) {
+      console.log('没有有效的产品ID，使用自定义报价方案');
+      
+      // 使用简单的方法获取产品ID，参考项目的做法
+      console.log('获取产品ID...');
+      
+      let genericProductId = null;
+      
+      // 方法1: 从全局变量获取
+      if (window.theme && window.theme.defaultVariantId) {
+        genericProductId = window.theme.defaultVariantId;
+        console.log('✅ 使用主题默认产品ID:', genericProductId);
+      }
+      
+      // 方法2: 从页面数据获取
+      if (!genericProductId) {
+        const productData = document.querySelector('[data-product-json]');
+        if (productData) {
+          try {
+            const product = JSON.parse(productData.textContent);
+            if (product && product.selected_or_first_available_variant) {
+              genericProductId = product.selected_or_first_available_variant.id.toString();
+              console.log('✅ 使用页面产品ID:', genericProductId);
+            }
+          } catch (e) {
+            console.log('解析产品数据失败:', e);
+          }
+        }
+      }
+      
+      // 方法3: 使用硬编码的产品ID（您的实际产品ID）
+      if (!genericProductId) {
+        // 使用您商店中的3D模型上传与报价服务产品变体ID
+        genericProductId = '51217840308511'; // 您的实际产品变体ID
+        console.log('✅ 使用商店产品ID:', genericProductId);
+      }
+      
+      if (!genericProductId) {
+        alert('系统配置错误：无法获取产品ID。请联系客服完成下单。');
+        return;
+      }
+      
+      // 直接使用 complete-draft-order API，避免购物车价格问题
+      console.log('🔄 直接完成草稿订单，避免购物车价格问题...');
+      
+      try {
+        const completeResponse = await fetch(`${API_BASE}/complete-draft-order`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            draftOrderId: draftOrderId
+          })
+        });
+        
+        console.log('📡 完成草稿订单响应:', completeResponse.status);
+        
+        if (completeResponse.ok) {
+          const completeResult = await completeResponse.json();
+          console.log('📦 完成结果:', completeResult);
+          
+          if (completeResult.success) {
+            alert(`订单已准备就绪！\n\n订单号：${completeResult.draftOrder.name}\n金额：$${totalPrice}\n\n即将跳转到付款页面...`);
+            
+            if (completeResult.draftOrder.invoiceUrl) {
+              window.location.href = completeResult.draftOrder.invoiceUrl;
+            } else {
+              window.location.href = `/account/orders`;
+            }
+            return;
+          }
+        }
+        
+        // 如果完成失败，显示错误信息
+        throw new Error('完成订单失败');
+        
+      } catch (error) {
+        console.error('❌ 完成草稿订单失败:', error);
+        
+        // 提供备用方案
+        const orderInfo = `
+无法自动完成订单，请联系客服完成下单：
+
+订单详情：
+- 询价单号：${order.name}
+- 客户邮箱：${order.email}
+- 订单金额：$${totalPrice}
+- 文件信息：${order.lineItems?.[0]?.title || '3D模型'}
+
+客服邮箱：support@example.com
+        `;
+        
+        alert(orderInfo);
+        return;
+      }
+    }
+    
+  } catch (error) {
+    console.error('下单失败:', error);
+    alert('下单失败: ' + error.message);
+  }
+}
+
+// 加载所有订单列表
+async function loadAllOrders() {
+  try {
+    console.log('加载所有订单列表...');
+    const response = await fetch(`${API_BASE}/get-draft-orders?${authQuery}`);
+    
+    if (!response.ok) {
+      throw new Error(`API请求失败: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('订单列表数据:', data);
+    
+    if (data.success && data.draftOrders.length > 0) {
+      renderOrdersList(data.draftOrders);
+    } else {
+      showEmptyState();
+    }
+  } catch (error) {
+    console.error('加载订单列表失败:', error);
+    showError('加载订单列表失败: ' + error.message);
+  }
+}
+
+// 渲染订单列表
+function renderOrdersList(orders) {
+  console.log('渲染订单列表:', orders);
+  
+  // 隐藏单个订单详情
+  document.getElementById('quote-detail').style.display = 'none';
+  document.getElementById('loading-state').style.display = 'none';
+  
+  // 显示订单列表容器
+  let ordersListContainer = document.getElementById('orders-list-container');
+  if (!ordersListContainer) {
+    ordersListContainer = document.createElement('div');
+    ordersListContainer.id = 'orders-list-container';
+    ordersListContainer.className = 'orders-list-container';
+    
+    // 插入到页面中
+    const mainContent = document.querySelector('.quote-detail-container');
+    if (mainContent) {
+      mainContent.appendChild(ordersListContainer);
+    } else {
+      console.error('未找到 .quote-detail-container 元素');
+      document.body.appendChild(ordersListContainer);
+    }
+  }
+  
+  ordersListContainer.innerHTML = `
+    <div class="orders-list-header">
+      <h2>我的询价订单</h2>
+      <p>点击订单查看详情</p>
+    </div>
+    <div class="orders-list">
+      ${orders.map(order => createOrderCard(order)).join('')}
+    </div>
+  `;
+  
+  ordersListContainer.style.display = 'block';
+}
+
+// 创建订单卡片
+function createOrderCard(order) {
+  const status = getOrderStatus(order);
+  const date = formatDate(order.createdAt);
+  
+  return `
+    <div class="order-card" onclick="viewOrder('${order.id}')">
+      <div class="order-card-header">
+        <div class="order-number">${order.name}</div>
+        <div class="order-status ${status.className}">${status.text}</div>
+      </div>
+      <div class="order-card-body">
+        <div class="order-info">
+          <div class="order-date">创建时间: ${date}</div>
+          <div class="order-total">${order.totalPrice ? `$${parseFloat(order.totalPrice).toFixed(2)}` : '待报价'}</div>
+        </div>
+        ${order.lineItems && order.lineItems.length > 0 ? `
+          <div class="order-items">
+            ${order.lineItems.slice(0, 2).map(item => `
+              <div class="order-item">
+                ${item.title} ${item.quantity > 1 ? `×${item.quantity}` : ''}
+              </div>
+            `).join('')}
+            ${order.lineItems.length > 2 ? `<div class="order-item-more">...还有${order.lineItems.length - 2}个项目</div>` : ''}
+          </div>
+        ` : ''}
+      </div>
+      <div class="order-card-actions">
+        <button class="btn btn-primary" onclick="event.stopPropagation(); viewOrder('${order.id}')">
+          查看详情
+        </button>
+        <button class="btn btn-danger" onclick="event.stopPropagation(); deleteOrder('${order.id}')">
+          删除订单
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// 查看订单详情
+function viewOrder(orderId) {
+  console.log('查看订单:', orderId);
+  window.location.href = `${window.location.pathname}?id=${encodeURIComponent(orderId)}`;
+}
+
+// 删除订单
+async function deleteOrder(orderId) {
+  if (!confirm('确定要删除这个订单吗？此操作不可撤销。')) {
+    return;
+  }
+  
+  try {
+    console.log('删除订单:', orderId);
+    const response = await fetch(`${API_BASE}/delete-draft-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        draftOrderId: orderId,
+        email: customerEmail,
+        admin: isAdmin ? '1' : '0'
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showSuccessMessage('订单删除成功！');
+      // 重新加载订单列表
+      setTimeout(() => {
+        loadAllOrders();
+      }, 1000);
+    } else {
+      throw new Error(data.error || '删除失败');
+    }
+  } catch (error) {
+    console.error('删除订单失败:', error);
+    showError('删除订单失败: ' + error.message);
+  }
+}
+
+// 显示空状态
+function showEmptyState() {
+  // 隐藏其他内容
+  document.getElementById('quote-detail').style.display = 'none';
+  document.getElementById('loading-state').style.display = 'none';
+  
+  let emptyState = document.getElementById('empty-state');
+  if (!emptyState) {
+    emptyState = document.createElement('div');
+    emptyState.id = 'empty-state';
+    emptyState.className = 'empty-state';
+    
+    const mainContent = document.querySelector('.quote-detail-container');
+    if (mainContent) {
+      mainContent.appendChild(emptyState);
+    } else {
+      console.error('未找到 .quote-detail-container 元素');
+      document.body.appendChild(emptyState);
+    }
+  }
+  
+  emptyState.innerHTML = `
+    <div class="empty-state-content">
+      <div class="empty-state-icon">📋</div>
+      <h3>暂无询价订单</h3>
+      <p>您还没有提交过询价请求</p>
+      <a href="/pages/quote-request" class="btn btn-primary">
+        立即询价
+      </a>
+    </div>
+  `;
+  
+  emptyState.style.display = 'block';
+}
+
+// 显示成功消息
+function showSuccessMessage(message, duration = 3000) {
+  // 创建成功消息元素
+  const successMsg = document.createElement('div');
+  successMsg.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  `;
+  successMsg.textContent = message;
+  
+  document.body.appendChild(successMsg);
+  
+  // 自动移除
+  setTimeout(() => {
+    successMsg.style.opacity = '0';
+    successMsg.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      if (successMsg.parentNode) {
+        successMsg.parentNode.removeChild(successMsg);
+      }
+    }, 300);
+  }, duration);
+}
+
+// 显示错误
+function showError(message) {
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('quote-detail').style.display = 'none';
+  document.getElementById('error-state').style.display = 'block';
+  document.getElementById('error-message').textContent = message;
+  
+  // 如果是订单不存在错误，显示重新创建按钮
+  if (message.includes('草稿订单不存在') || message.includes('没有草稿订单')) {
+    document.getElementById('retry-create-btn').style.display = 'inline-block';
+  }
+}
+
+// 重新创建订单
+async function retryCreateOrder() {
+  const retryBtn = document.getElementById('retry-create-btn');
+  retryBtn.disabled = true;
+  retryBtn.textContent = '创建中...';
+  
+  try {
+    // 跳转到上传页面，让用户重新提交
+    alert('订单不存在，将跳转到上传页面重新创建订单。\n\n请重新上传文件并填写配置参数。');
+    window.location.href = '/pages/model-uploader';
+  } catch (error) {
+    console.error('重试创建订单失败:', error);
+    retryBtn.disabled = false;
+    retryBtn.textContent = '重新创建订单';
+    alert('跳转失败，请手动访问上传页面');
+  }
+}
+
+// 下载所有文件
+async function downloadAllFiles() {
+  if (!window.currentDraftOrder || !window.currentDraftOrder.lineItems) {
+    alert('没有可下载的文件。');
+    return;
+  }
+
+  console.log('开始下载文件...');
+  
+  for (const item of window.currentDraftOrder.lineItems) {
+    const fileIdAttr = item.customAttributes.find(attr => attr.key === '文件ID');
+    const fileNameAttr = item.customAttributes.find(attr => attr.key === '文件');
+    
+    if (fileIdAttr && fileIdAttr.value) {
+      const fileId = fileIdAttr.value;
+      const fileName = fileNameAttr ? fileNameAttr.value : item.title;
+      
+      console.log('下载文件:', fileName, 'ID:', fileId);
+      
+      try {
+        // 检查是否是本地存储的文件
+        if (fileId.startsWith('file_') && window.fileStorageManager) {
+          const fileInfo = window.fileStorageManager.getFileInfo(fileId);
+          if (fileInfo && fileInfo.url) {
+            // 从本地存储下载
+            window.fileStorageManager.downloadFile(fileInfo.url, fileName);
+            console.log('✅ 本地文件下载完成:', fileName);
+          } else {
+            console.warn('⚠️ 本地文件不存在:', fileId);
+            alert(`文件 "${fileName}" 在本地存储中不存在，可能已被清理。`);
+          }
+        } else {
+          // 尝试从API下载
+          const response = await fetch(`${API_BASE}/download-file?id=${encodeURIComponent(fileId)}`);
+          if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            console.log('✅ API文件下载完成:', fileName);
+          } else {
+            throw new Error(`下载失败: ${response.status}`);
+          }
+        }
+      } catch (error) {
+        console.error(`下载文件 ${fileName} 失败:`, error);
+        alert(`下载文件 "${fileName}" 失败: ${error.message}`);
+      }
+    } else {
+      console.warn('文件没有文件ID:', item.title);
+      alert(`文件 "${item.title}" 没有找到文件ID，无法下载。`);
+    }
+  }
+  
+  console.log('文件下载完成');
+}
+
+// 在 JavaScript 中添加邮箱验证，确保只显示当前客户的订单
+function filterOrdersByCustomerEmail() {
+  const customerEmailDiv = document.querySelector('.customer-authenticated');
+  if (!customerEmailDiv) return null;
+  
+  const customerEmail = customerEmailDiv.getAttribute('data-customer-email');
+  console.log('当前登录客户邮箱:', customerEmail);
+  return customerEmail;
+}
+
+// 修改 loadDraftOrders 函数，添加邮箱过滤
+const originalLoadDraftOrders = window.loadDraftOrders;
+if (originalLoadDraftOrders) {
+  window.loadDraftOrders = async function() {
+    const customerEmail = filterOrdersByCustomerEmail();
+    if (!customerEmail) {
+      console.error('未找到客户邮箱，无法加载订单');
+      return;
+    }
+    
+    // 调用原函数加载订单
+    await originalLoadDraftOrders();
+    
+    // 过滤订单，只显示当前客户的
+    const allOrders = document.querySelectorAll('.order-card');
+    allOrders.forEach(orderCard => {
+      const emailElement = orderCard.querySelector('[data-order-email]');
+      if (emailElement) {
+        const orderEmail = emailElement.getAttribute('data-order-email');
+        if (orderEmail !== customerEmail) {
+          // 隐藏不属于当前客户的订单
+          orderCard.style.display = 'none';
+        }
+      }
+    });
+  };
+}
+</script>
+
+</div>
+<!-- 关闭客户已登录的div -->
+{% endunless %}

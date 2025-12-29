@@ -1,0 +1,982 @@
+<section class="model-uploader-new">
+  {%- style -%}
+    /* 隐藏原生的产品表单，只显示我们的自定义上传器 */
+    .product-form,
+    .product__info-wrapper .product-form,
+    .product__media-wrapper + .product__info-wrapper .product-form,
+    .product__info-wrapper form[action*="cart/add"],
+    .product__info-wrapper .add-to-cart-button,
+    .product__info-wrapper .product-form__buttons,
+    .product__info-wrapper .product-form__cart-submit,
+    .product__info-wrapper .product-form__cart-submit-wrapper {
+      display: none !important;
+    }
+
+    .model-uploader-new {
+      background: #f8f9fa;
+      min-height: 100vh;
+      padding: 40px 0;
+    }
+
+    .uploader-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .uploader-grid {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+
+    .uploader-left {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .uploader-right {
+      flex: 0 0 400px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .config-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    /* 3D模型查看器 */
+    .model-viewer {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      min-height: 400px;
+      border: 2px solid #e0e0e0;
+      position: relative;
+    }
+
+    .viewer-container {
+      width: 100%;
+      height: 400px;
+      position: relative;
+      background: #f8f9fa;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .viewer-placeholder {
+      text-align: center;
+      color: #666;
+    }
+
+    .viewer-placeholder svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .viewer-placeholder p {
+      font-size: 16px;
+      margin: 0;
+    }
+
+    /* 文件上传区域 */
+    .upload-area {
+      background: #fff;
+      border: 2px dashed #ddd;
+      border-radius: 12px;
+      padding: 40px 20px;
+      text-align: center;
+      margin-bottom: 30px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover {
+      border-color: #1976d2;
+      background: #f0f7ff;
+    }
+
+    .upload-area.dragover {
+      border-color: #1976d2;
+      background: #e3f2fd;
+    }
+
+    .upload-content h3 {
+      font-size: 18px;
+      color: #333;
+      margin: 16px 0 8px;
+    }
+
+    .upload-content p {
+      color: #666;
+      margin: 4px 0;
+      font-size: 14px;
+    }
+
+    .upload-icon {
+      width: 48px;
+      height: 48px;
+      color: #1976d2;
+      margin: 0 auto;
+    }
+
+    .upload-btn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: background 0.3s ease;
+    }
+
+    .upload-btn:hover {
+      background: #1565c0;
+    }
+
+    /* 配置区域样式 */
+    .config-group {
+      margin-bottom: 25px;
+    }
+
+    .config-label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .config-select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+
+    .config-select:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 20px;
+    }
+
+    .radio-item {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .radio-item input[type="radio"] {
+      margin-right: 8px;
+    }
+
+    /* 备注文本框 */
+    .config-textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .config-textarea:focus {
+      outline: none;
+      border-color: #1976d2;
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    /* 2D图纸警告提示 */
+    .warning-note {
+      background: #fff3e0;
+      border: 1px solid #ff9800;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .warning-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .warning-text {
+      font-size: 14px;
+      color: #e65100;
+      line-height: 1.5;
+    }
+
+    .warning-text strong {
+      color: #bf360c;
+    }
+
+    /* 文件列表样式 */
+    .file-list {
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .file-list h3 {
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      color: #333;
+    }
+
+        .file-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px;
+          border: 1px solid #e0e0e0;
+          border-radius: 6px;
+          margin-bottom: 8px;
+          background: #f8f9fa;
+          transition: all 0.3s ease;
+        }
+
+        .file-item:hover {
+          background: #f0f0f0;
+        }
+
+        .file-info {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
+
+        .file-name {
+          font-weight: 600;
+          color: #333;
+          font-size: 14px;
+          margin-bottom: 4px;
+        }
+
+        .file-size {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 2px;
+        }
+
+        .file-dimensions {
+          font-size: 11px;
+          color: #888;
+          font-style: italic;
+        }
+
+    .file-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* 2D文件指示器 */
+    .file-2d-indicator {
+      background: #e8f5e8;
+      border: 1px solid #4caf50;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #2e7d32;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+        .file-select {
+          background: #e0e0e0;
+          color: #333;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+          transition: all 0.3s ease;
+        }
+
+        .file-select:hover {
+          background: #d0d0d0;
+        }
+
+        .file-remove {
+          background: #f44336;
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+          transition: all 0.3s ease;
+        }
+
+        .file-remove:hover {
+          background: #d32f2f;
+        }
+
+    /* 缩放滑块 */
+    .config-range {
+      width: 100%;
+      margin: 8px 0;
+    }
+
+    .range-value {
+      text-align: center;
+      font-weight: 600;
+      color: #1976d2;
+    }
+
+    /* 数量选择器 */
+    .quantity-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .qty-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .qty-btn:hover {
+      background: #f5f5f5;
+    }
+
+    .qty-input {
+      width: 60px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    /* 尺寸显示 */
+    .dimensions-display {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+      text-align: center;
+    }
+
+    .dimensions-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .dimensions-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+
+    /* 添加到购物车按钮 */
+    .add-to-cart-btn {
+      width: 100%;
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+      margin-top: 20px;
+    }
+
+    .add-to-cart-btn:hover:not(:disabled) {
+      background: #1565c0;
+      transform: translateY(-1px);
+    }
+
+    .add-to-cart-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* 信息提示 */
+    .info-section {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 25px 0;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .info-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-icon {
+      width: 20px;
+      height: 20px;
+      margin-right: 12px;
+      color: #4caf50;
+    }
+
+    /* 加载指示器 */
+    .loading-indicator {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #1976d2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 错误消息 */
+    .error-message {
+      background: #ffebee;
+      color: #c62828;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border: 1px solid #ffcdd2;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+      .uploader-grid {
+        flex-direction: column;
+        gap: 20px;
+      }
+      
+      .uploader-right {
+        flex: none;
+        position: static;
+      }
+      
+      .page-title {
+        font-size: 24px;
+      }
+      
+      .config-title {
+        font-size: 20px;
+      }
+    }
+  {%- endstyle -%}
+
+  <div class="uploader-container">
+    <h1 class="page-title">上传 3D 模型</h1>
+    
+    <div class="uploader-grid">
+      <!-- 左侧：3D模型查看器和文件上传区域 -->
+      <div class="uploader-left">
+        <!-- 3D模型查看器 -->
+        <div class="model-viewer" id="model-viewer">
+          <div class="viewer-container" id="viewer-container">
+            <div class="viewer-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+              <p>上传3D模型文件以查看预览</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 文件上传区域 -->
+        <div class="upload-area" id="dropzone">
+          <div class="upload-content">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7,10 12,15 17,10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <h3>上传您的 3D 模型</h3>
+            <p>支持格式：STP / STEP 文件，以及对应的2D图纸（DWG / DXF / PDF）</p>
+            <p class="file-limit">单次上传文件≤20个,单个文件大小&lt;100M</p>
+            <button type="button" class="upload-btn" id="upload-btn">选择文件</button>
+          </div>
+          <input type="file" id="uploader-input" multiple accept=".stp,.step,.zip,.dwg,.dxf,.pdf" style="display: none;">
+        </div>
+
+        <!-- 加载指示器 -->
+        <div class="loading-indicator" id="loading-indicator" style="display: none;">
+          <div class="spinner"></div>
+          <p>分析你的设计</p>
+        </div>
+
+        <!-- 错误消息 -->
+        <div class="error-message" id="error-message" style="display: none;"></div>
+
+        <!-- 文件列表 -->
+        <div class="file-list" id="file-list" style="display: none;">
+          <h3>已上传文件</h3>
+          <div class="file-items" id="file-items"></div>
+        </div>
+        </div>
+        
+      <!-- 右侧：参数配置区域 -->
+      <div class="uploader-right">
+        <h2 class="config-title">配置选项</h2>
+        
+        <!-- 单位选择 -->
+        <div class="config-group">
+          <label class="config-label">单位</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="unit" value="mm" checked>
+              <span>毫米 (mm)</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="unit" value="in">
+              <span>英寸 (in)</span>
+            </label>
+      </div>
+    </div>
+
+        <!-- 材料选择 -->
+        <div class="config-group">
+          <label class="config-label">材料</label>
+          <select id="material" class="config-select">
+            <option value="PLA">PLA</option>
+            <option value="ABS">ABS</option>
+            <option value="PETG">PETG</option>
+            <option value="TPU">TPU</option>
+            <option value="Nylon">尼龙</option>
+            <option value="Metal">金属</option>
+            <option value="Polyamide (SLS)">聚酰胺 (SLS)</option>
+        </select>
+        </div>
+
+        <!-- 颜色与表面处理 -->
+        <div class="config-group">
+          <label class="config-label">颜色与表面</label>
+          <select id="finish" class="config-select">
+            <option value="Natural">自然色</option>
+            <option value="White">白色</option>
+            <option value="Black">黑色</option>
+            <option value="Red">红色</option>
+            <option value="Blue">蓝色</option>
+            <option value="Green">绿色</option>
+            <option value="Polished">抛光</option>
+            <option value="Matte">哑光</option>
+        </select>
+        </div>
+
+        <!-- 精度等级 -->
+        <div class="config-group">
+          <label class="config-label">精度等级</label>
+          <select id="precision" class="config-select">
+            <option value="Standard">标准 (±0.1mm)</option>
+            <option value="High">高精度 (±0.05mm)</option>
+            <option value="Ultra">超高精度 (±0.02mm)</option>
+          </select>
+      </div>
+
+        <!-- 公差标准 -->
+        <div class="config-group">
+          <label class="config-label">公差标准</label>
+          <select id="tolerance-standard" class="config-select">
+            <option value="GB/T 1804-2000 m级">GB/T 1804-2000 m级</option>
+            <option value="GB/T 1804-2000 c级">GB/T 1804-2000 c级</option>
+            <option value="GB/T 1804-2000 v级">GB/T 1804-2000 v级</option>
+            <option value="ISO 2768-1 m">ISO 2768-1 m</option>
+            <option value="ISO 2768-1 c">ISO 2768-1 c</option>
+            <option value="ISO 2768-1 v">ISO 2768-1 v</option>
+          </select>
+      </div>
+
+        <!-- 表面粗糙度 -->
+        <div class="config-group">
+          <label class="config-label">最小粗糙度</label>
+          <select id="surface-roughness" class="config-select">
+            <option value="Ra3.2">Ra3.2</option>
+            <option value="Ra1.6">Ra1.6</option>
+            <option value="Ra0.8">Ra0.8</option>
+            <option value="Ra0.4">Ra0.4</option>
+            <option value="Ra0.2">Ra0.2</option>
+          </select>
+      </div>
+
+        <!-- 是否有螺纹 -->
+        <div class="config-group">
+          <label class="config-label">是否有螺纹</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="has-thread" value="yes">
+              <span>是</span>
+          </label>
+            <label class="radio-item">
+              <input type="radio" name="has-thread" value="no" checked>
+              <span>否</span>
+          </label>
+        </div>
+      </div>
+
+        <!-- 是否有装配标记 -->
+        <div class="config-group">
+          <label class="config-label">是否有装配标记</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="has-assembly-mark" value="yes">
+              <span>是</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="has-assembly-mark" value="no" checked>
+              <span>否</span>
+            </label>
+      </div>
+      </div>
+
+        <!-- 尺寸显示 -->
+        <div class="dimensions-display" id="dimensions-display" style="display: none;">
+          <div class="dimensions-label">尺寸</div>
+          <div class="dimensions-value" id="dimensions-value">0 x 0 x 0 毫米</div>
+      </div>
+
+        <!-- 缩放比例 -->
+        <div class="config-group">
+          <label class="config-label">规模</label>
+          <input type="range" id="scale" min="10" max="500" value="100" class="config-range">
+          <div class="range-value">
+            <span id="scale-value">100%</span>
+      </div>
+      </div>
+
+        <!-- 数量 -->
+        <div class="config-group">
+          <label class="config-label">数量</label>
+          <div class="quantity-selector">
+            <button type="button" class="qty-btn" id="qty-minus">-</button>
+            <input type="number" id="qty" value="1" min="1" class="qty-input">
+            <button type="button" class="qty-btn" id="qty-plus">+</button>
+        </div>
+      </div>
+
+        <!-- 备注 -->
+        <div class="config-group">
+          <label class="config-label">备注</label>
+          <textarea id="note" class="config-textarea" placeholder="请输入特殊要求或备注信息..." maxlength="200"></textarea>
+        <div class="char-count">
+          <span id="char-count">0</span>/200
+        </div>
+      </div>
+
+      <!-- 2D图纸警告提示 -->
+      <div class="warning-note">
+        <div class="warning-icon">⚠️</div>
+        <div class="warning-text">
+          <strong>重要提醒：</strong>如果您的3D模型包含螺纹或装配标记，请确保为每个3D文件上传对应的2D图纸文件（DWG/DXF/PDF），以便我们提供准确的加工报价。
+        </div>
+      </div>
+
+
+        <!-- 立即询价按钮 -->
+        <button type="button" class="add-to-cart-btn" id="add-to-cart" disabled>
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          立即询价
+        </button>
+
+        <!-- 信息提示 -->
+        <div class="info-section">
+          <div class="info-item">
+            <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12,6 12,12 16,14"></polyline>
+            </svg>
+            <span>预计交付: 3-5个工作日</span>
+        </div>
+          <div class="info-item">
+            <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 12l2 2 4-4"></path>
+              <circle cx="12" cy="12" r="10"></circle>
+          </svg>
+          <span>质量保证：100%合格</span>
+          </div>
+        </div>
+      </div>
+        </div>
+      </div>
+
+    <!-- 登录与地址状态（由Liquid注入供前端判断） -->
+    <script>
+      (function(){
+        try {
+          window.customerState = {
+            loggedIn: {% if customer %}true{% else %}false{% endif %},
+            hasAddress: {% if customer and customer.default_address %}true{% else %}false{% endif %},
+            email: {% if customer %}'{{ customer.email | escape }}'{% else %}null{% endif %},
+            address: {% if customer and customer.default_address %}{
+              first_name: '{{ customer.default_address.first_name | escape }}',
+              last_name: '{{ customer.default_address.last_name | escape }}',
+              address1: '{{ customer.default_address.address1 | escape }}',
+              address2: '{{ customer.default_address.address2 | escape }}',
+              city: '{{ customer.default_address.city | escape }}',
+              province: '{{ customer.default_address.province | escape }}',
+              zip: '{{ customer.default_address.zip | escape }}',
+              country: '{{ customer.default_address.country | escape }}',
+              phone: '{{ customer.default_address.phone | escape }}'
+            }{% else %}null{% endif %}
+          };
+        } catch (e) { window.customerState = { loggedIn: false, hasAddress: false, email: null }; }
+      })();
+    </script>
+
+  <!-- 加载Three.js库 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" defer></script>
+  
+  <!-- 加载JSZip库用于ZIP文件解压 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  
+  <!-- 加载Online3DViewer引擎（本地） -->
+  <script src="{{ 'o3dv.min.js' | asset_url }}" defer></script>
+  
+  <!-- 加载Online3DViewer包装器 -->
+  <script src="{{ 'o3dv-wrapper.js' | asset_url }}" defer></script>
+  
+  <!-- 加载登录管理系统 -->
+  <script src="{{ 'login-manager.js' | asset_url }}" defer></script>
+  <!-- 报价中心API客户端（App Proxy） -->
+  <script src="{{ 'quote-api.js' | asset_url }}" defer></script>
+  
+  <!-- 加载文件存储管理器 -->
+  <script src="{{ 'file-storage.js' | asset_url }}" defer></script>
+  
+  <!-- 加载邮件通知系统 -->
+  <script src="{{ 'email-notification.js' | asset_url }}" defer></script>
+  
+  <!-- 加载模型上传器脚本 -->
+  <script src="{{ 'file-storage.js' | asset_url }}" defer></script>
+  <script src="{{ 'model-uploader.js' | asset_url }}" defer></script>
+
+  <!-- 隐藏的表单用于提交到购物车 -->
+  <form id="add-form" action="{{ routes.cart_add_url }}" method="post" enctype="multipart/form-data" style="display: none;">
+    {% comment %} 优先使用当前产品的变体ID {% endcomment %}
+    {% if product %}
+      <input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}" id="product-variant-id">
+      <script>
+        // 保存当前产品的变体ID到全局变量
+        window.currentProductVariantId = '{{ product.selected_or_first_available_variant.id }}';
+        console.log('Model Uploader: 使用当前产品变体ID:', window.currentProductVariantId);
+      </script>
+    {% elsif section.settings.product %}
+        {% assign sel = section.settings.product %}
+      <input type="hidden" name="id" value="{{ sel.selected_or_first_available_variant.id }}" id="section-variant-id">
+      <script>
+        // 保存section配置的变体ID到全局变量
+        window.currentProductVariantId = '{{ sel.selected_or_first_available_variant.id }}';
+        console.log('Model Uploader: 使用section配置的变体ID:', window.currentProductVariantId);
+      </script>
+    {% else %}
+      <!-- 后备变体ID字段，用于调试和测试 -->
+      <input type="hidden" name="id" value="" id="fallback-variant-id">
+      <script>
+        console.warn('Model Uploader: 未配置关联商品，尝试从页面数据获取变体ID。');
+        
+        // 尝试从页面数据获取变体ID
+        function getVariantIdFromPage() {
+          // 方法1：从产品数据获取
+          const productData = document.querySelector('[data-product-json]');
+          if (productData) {
+            try {
+              const product = JSON.parse(productData.textContent);
+              if (product && product.selected_or_first_available_variant) {
+                return product.selected_or_first_available_variant.id.toString();
+              }
+            } catch (e) {
+              console.log('Failed to parse product data:', e);
+            }
+          }
+          
+          // 方法2：从URL参数获取
+          const urlParams = new URLSearchParams(window.location.search);
+          const variantId = urlParams.get('variant');
+          if (variantId) {
+            return variantId;
+          }
+          
+          // 方法3：从meta标签获取
+          const metaVariant = document.querySelector('meta[name="variant-id"]');
+          if (metaVariant) {
+            return metaVariant.content;
+          }
+          
+          return null;
+        }
+        
+        // 页面加载完成后尝试获取变体ID
+        document.addEventListener('DOMContentLoaded', function() {
+          const variantId = getVariantIdFromPage();
+          const fallbackInput = document.getElementById('fallback-variant-id');
+          
+          if (variantId && fallbackInput) {
+            fallbackInput.value = variantId;
+            window.currentProductVariantId = variantId;
+            console.log('Model Uploader: 从页面数据获取到变体ID:', variantId);
+          } else {
+            console.error('Model Uploader: 无法获取变体ID，请确保在产品页面使用此section。');
+          }
+        });
+      </script>
+        {% endif %}
+    
+        <!-- Hidden props to carry custom options to backend -->
+        <input type="hidden" id="prop-unit" name="properties[单位]" value="mm">
+        <input type="hidden" id="prop-material" name="properties[材料]" value="">
+        <input type="hidden" id="prop-finish" name="properties[颜色与表面]" value="">
+        <input type="hidden" id="prop-precision" name="properties[精度等级]" value="">
+        <input type="hidden" id="prop-tolerance" name="properties[公差标准]" value="">
+    <input type="hidden" id="prop-roughness" name="properties[表面粗糙度]" value="">
+    <input type="hidden" id="prop-thread" name="properties[是否有螺纹]" value="">
+    <input type="hidden" id="prop-assembly" name="properties[是否有装配标记]" value="">
+    <input type="hidden" id="prop-scale" name="properties[缩放比例]" value="">
+        <input type="hidden" id="prop-note" name="properties[备注]" value="">
+    <input type="hidden" id="prop-file" name="properties[上传文件]" type="file">
+    <input type="hidden" id="form-qty" name="quantity" value="1">
+    <input type="hidden" name="properties[Order Type]" value="3D Model Quote">
+    <input type="hidden" name="properties[Quote Status]" value="Pending">
+      </form>
+</section>
+
+  {% schema %}
+  {
+  "name": "3D Model Uploader",
+  "tag": "section",
+  "class": "section",
+    "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "标题",
+      "default": "上传 3D 模型"
+    },
+    {
+      "type": "product",
+      "id": "product",
+      "label": "关联商品（用于加入购物车）"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "颜色方案",
+      "default": "background-1"
+    },
+    {
+      "type": "header",
+      "content": "间距设置"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "顶部间距",
+      "default": 36
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "min": 0,
+      "max": 100,
+      "step": 4,
+      "unit": "px",
+      "label": "底部间距",
+      "default": 36
+    }
+  ],
+  "presets": [
+    {
+      "name": "3D Model Uploader"
+    }
+  ]
+  }
+  {% endschema %}

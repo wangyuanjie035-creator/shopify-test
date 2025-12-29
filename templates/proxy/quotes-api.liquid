@@ -1,0 +1,90 @@
+{% comment %}
+  Shopify App Proxy for Quotes API
+  访问路径: /apps/quotes-api
+  这个文件会返回纯JSON响应
+{% endcomment %}
+
+{% comment %} 设置响应头 {% endcomment %}
+{% assign response_headers = 'Content-Type: application/json' %}
+
+{% comment %} 处理 OPTIONS 预检请求 {% endcomment %}
+{% if request.method == 'OPTIONS' %}
+  {% assign response_body = '{"message": "CORS preflight", "status": "success"}' %}
+  {% assign response_status = 200 %}
+{% else %}
+
+  {% comment %} 处理不同的请求方法 {% endcomment %}
+  {% if request.method == 'GET' %}
+    {% comment %} GET 请求 - 获取所有 quotes {% endcomment %}
+    {% assign quotes_data = shop.metafields.custom.quotes_data %}
+    {% if quotes_data == blank %}
+      {% assign quotes_data = '[]' %}
+    {% endif %}
+    {% assign response_body = '{"records":' | append: quotes_data | append: ', "status": "success", "count": ' | append: quotes_data | parse_json | size | append: ', "message": "Quotes retrieved successfully"}' %}
+    {% assign response_status = 200 %}
+
+  {% elsif request.method == 'POST' %}
+    {% comment %} POST 请求 - 添加新 quote {% endcomment %}
+    {% assign request_body = request.body %}
+    {% if request_body == blank %}
+      {% assign response_body = '{"error": "Request body is required", "status": "error", "code": 400}' %}
+      {% assign response_status = 400 %}
+    {% else %}
+      {% assign new_quote = request_body | parse_json %}
+      {% if new_quote == blank %}
+        {% assign response_body = '{"error": "Invalid JSON in request body", "status": "error", "code": 400}' %}
+        {% assign response_status = 400 %}
+      {% else %}
+        {% comment %} 生成新 ID {% endcomment %}
+        {% assign new_id = 'now' | date: '%s' %}
+        {% assign new_quote_with_id = new_quote | json | prepend: '{"id":"' | append: new_id | append: '",' | append: new_quote | json | slice: 1 %}
+        {% assign response_body = new_quote_with_id %}
+        {% assign response_status = 201 %}
+      {% endif %}
+    {% endif %}
+
+  {% elsif request.method == 'PUT' %}
+    {% comment %} PUT 请求 - 更新 quote {% endcomment %}
+    {% assign request_body = request.body %}
+    {% if request_body == blank %}
+      {% assign response_body = '{"error": "Request body is required", "status": "error", "code": 400}' %}
+      {% assign response_status = 400 %}
+    {% else %}
+      {% assign updated_quote = request_body | parse_json %}
+      {% if updated_quote == blank %}
+        {% assign response_body = '{"error": "Invalid JSON in request body", "status": "error", "code": 400}' %}
+        {% assign response_status = 400 %}
+      {% else %}
+        {% assign quote_id = request.path | split: '/' | last %}
+        {% if quote_id == blank %}
+          {% assign response_body = '{"error": "Quote ID is required", "status": "error", "code": 400}' %}
+          {% assign response_status = 400 %}
+        {% else %}
+          {% assign updated_quote_with_id = updated_quote | json | prepend: '{"id":"' | append: quote_id | append: '",' | append: updated_quote | json | slice: 1 %}
+          {% assign response_body = updated_quote_with_id %}
+          {% assign response_status = 200 %}
+        {% endif %}
+      {% endif %}
+    {% endif %}
+
+  {% elsif request.method == 'DELETE' %}
+    {% comment %} DELETE 请求 - 删除 quote {% endcomment %}
+    {% assign quote_id = request.path | split: '/' | last %}
+    {% if quote_id == blank %}
+      {% assign response_body = '{"error": "Quote ID is required", "status": "error", "code": 400}' %}
+      {% assign response_status = 400 %}
+    {% else %}
+      {% assign response_body = '{"message": "Quote deleted successfully", "id": "' | append: quote_id | append: '", "status": "success"}' %}
+      {% assign response_status = 200 %}
+    {% endif %}
+
+  {% else %}
+    {% comment %} 其他请求方法 {% endcomment %}
+    {% assign response_body = '{"error": "Method not allowed", "status": "error", "code": 405, "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]}' %}
+    {% assign response_status = 405 %}
+  {% endif %}
+
+{% endif %}
+
+{% comment %} 输出响应 {% endcomment %}
+{{ response_body }}

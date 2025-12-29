@@ -1,0 +1,262 @@
+{% comment %}
+  客服登录页面
+  只有客服人员才能访问后台管理功能
+{% endcomment %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>客服登录 - 订单管理系统</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    
+    .logo {
+      font-size: 32px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s ease;
+      box-sizing: border-box;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    
+    .login-btn:hover {
+      background: #5a6fd8;
+    }
+    
+    .login-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .error-message {
+      color: #e74c3c;
+      background: #fdf2f2;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .success-message {
+      color: #27ae60;
+      background: #f0f9f4;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .admin-info {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .admin-info h4 {
+      margin: 0 0 10px 0;
+      color: #333;
+    }
+    
+    .admin-info p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">🔐</div>
+    <h1>客服登录</h1>
+    <p class="subtitle">订单管理系统</p>
+    
+    <div class="error-message" id="error-message"></div>
+    <div class="success-message" id="success-message"></div>
+    
+    <form id="admin-login-form">
+      <div class="form-group">
+        <label for="admin-code">客服代码</label>
+        <input type="text" id="admin-code" name="admin-code" placeholder="请输入客服代码" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="admin-password">密码</label>
+        <input type="password" id="admin-password" name="admin-password" placeholder="请输入密码" required>
+      </div>
+      
+      <button type="submit" class="login-btn" id="login-btn">
+        登录
+      </button>
+    </form>
+    
+    <div class="admin-info">
+      <h4>客服信息</h4>
+      <p><strong>客服代码:</strong> admin</p>
+      <p><strong>密码:</strong> admin123</p>
+      <p><strong>权限:</strong> 查看订单、管理报价、下载文件</p>
+      <p style="margin-top:10px; font-size:12px; color:#999;">
+        如提示“已有客户登录”，请点击
+        <a href="#" id="clear-sessions">清除登录状态</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- 加载登录管理系统 -->
+  <script src="{{ 'login-manager.js' | asset_url }}" defer></script>
+
+  <script>
+    // 客服登录验证
+    const ADMIN_CREDENTIALS = {
+      'admin': 'admin123',
+      'service1': 'service123',
+      'service2': 'service456'
+    };
+    
+    const loginForm = document.getElementById('admin-login-form');
+    const errorMessage = document.getElementById('error-message');
+    const successMessage = document.getElementById('success-message');
+    const loginBtn = document.getElementById('login-btn');
+    
+    loginForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const adminCode = document.getElementById('admin-code').value;
+      const password = document.getElementById('admin-password').value;
+      
+      // 隐藏之前的消息
+      errorMessage.style.display = 'none';
+      successMessage.style.display = 'none';
+      
+      // 验证凭据
+      if (ADMIN_CREDENTIALS[adminCode] && ADMIN_CREDENTIALS[adminCode] === password) {
+        // 使用登录管理系统进行登录
+        const loginSuccess = window.loginManager.adminLogin({
+          adminCode: adminCode,
+          name: `客服 ${adminCode}`,
+          permissions: ['view_orders', 'manage_quotes', 'download_files']
+        });
+        
+        if (loginSuccess) {
+          successMessage.textContent = '登录成功！正在跳转...';
+          successMessage.style.display = 'block';
+          
+          // 延迟跳转到管理界面
+          setTimeout(() => {
+            window.location.href = '/pages/admin-dashboard';
+          }, 1000);
+        } else {
+          showError('登录失败：已有客户登录，请先退出客户登录');
+        }
+      } else {
+        showError('客服代码或密码错误');
+      }
+    });
+    
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+    }
+    
+    // 检查是否已经登录
+    document.addEventListener('DOMContentLoaded', function() {
+      // 等待登录管理系统加载
+      setTimeout(() => {
+        if (window.loginManager) {
+          const status = window.loginManager.checkLoginStatus();
+          
+          if (status.isAdmin) {
+            // 管理员已登录，直接跳转
+            window.location.href = '/pages/admin-dashboard';
+          } else if (status.isCustomer) {
+            // 客户已登录，显示提示
+            showError('检测到客户已登录，请先退出客户登录后再进行管理员登录');
+          }
+        }
+      }, 100);
+    });
+
+    // 一键清除本地登录状态
+    document.getElementById('clear-sessions').addEventListener('click', function(e) {
+      e.preventDefault();
+      try {
+        if (window.loginManager) {
+          window.loginManager.logout();
+        }
+        // 兜底：直接清掉可能残留的键
+        localStorage.removeItem('customerSession');
+        localStorage.removeItem('adminSession');
+        successMessage.textContent = '已清除本地登录状态，请重新登录';
+        successMessage.style.display = 'block';
+        errorMessage.style.display = 'none';
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

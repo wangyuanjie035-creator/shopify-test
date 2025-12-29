@@ -1,0 +1,14 @@
+{
+  "sections": {
+    "main": {
+      "type": "admin-file-manager",
+      "settings": {
+        "title": "客户文件管理",
+        "description": "查看和下载客户上传的3D模型文件"
+      }
+    }
+  },
+  "order": [
+    "main"
+  ]
+}

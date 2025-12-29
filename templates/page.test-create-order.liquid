@@ -1,0 +1,269 @@
+{% comment %}
+  测试创建订单页面
+  用于快速创建测试草稿订单，验证系统功能
+{% endcomment %}
+
+<style>
+  .test-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  
+  .test-form {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  
+  .form-group textarea {
+    height: 80px;
+    resize: vertical;
+  }
+  
+  .btn {
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-primary {
+    background: #e91e63;
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    background: #c2185b;
+  }
+  
+  .btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .result {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 8px;
+    display: none;
+  }
+  
+  .result.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+  
+  .result.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #f0f0f0;
+    border-top: 3px solid #e91e63;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>
+
+<div class="test-container">
+  <div class="test-form">
+    <h1 style="margin-top: 0; color: #333;">🧪 创建测试草稿订单</h1>
+    <p style="color: #666; margin-bottom: 30px;">此页面用于快速创建测试订单，验证系统功能是否正常。</p>
+    
+    <form id="test-form">
+      <div class="form-group">
+        <label for="customerName">客户姓名:</label>
+        <input type="text" id="customerName" value="张三" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="customerEmail">客户邮箱:</label>
+        <input type="email" id="customerEmail" value="zhangsan@example.com" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="fileName">文件名:</label>
+        <input type="text" id="fileName" value="test-part.stp" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="quantity">数量:</label>
+        <input type="number" id="quantity" value="1" min="1" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="material">材料:</label>
+        <select id="material">
+          <option value="PLA">PLA</option>
+          <option value="ABS">ABS</option>
+          <option value="PETG">PETG</option>
+          <option value="TPU">TPU</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="finish">表面处理:</label>
+        <select id="finish">
+          <option value="自然色">自然色</option>
+          <option value="抛光">抛光</option>
+          <option value="喷漆">喷漆</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="precision">精度等级:</label>
+        <select id="precision">
+          <option value="标准 (±0.1mm)">标准 (±0.1mm)</option>
+          <option value="高精度 (±0.05mm)">高精度 (±0.05mm)</option>
+          <option value="超高精度 (±0.02mm)">超高精度 (±0.02mm)</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="note">备注:</label>
+        <textarea id="note" placeholder="请输入备注信息...">这是一个测试订单，用于验证系统功能。</textarea>
+      </div>
+      
+      <button type="submit" class="btn btn-primary" id="submit-btn">
+        创建测试订单
+      </button>
+    </form>
+    
+    <div id="loading" class="loading" style="display: none;">
+      <div class="loading-spinner"></div>
+      <p>正在创建测试订单...</p>
+    </div>
+    
+    <div id="result" class="result">
+      <p id="result-message"></p>
+      <a id="view-order-link" href="#" style="display: none; color: #e91e63; text-decoration: none; font-weight: 500;">
+        查看订单详情 →
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://shopify-13s4.vercel.app/api';
+
+document.getElementById('test-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const submitBtn = document.getElementById('submit-btn');
+  const loading = document.getElementById('loading');
+  const result = document.getElementById('result');
+  const resultMessage = document.getElementById('result-message');
+  const viewOrderLink = document.getElementById('view-order-link');
+  
+  // 显示加载状态
+  submitBtn.disabled = true;
+  loading.style.display = 'block';
+  result.style.display = 'none';
+  
+  try {
+    // 收集表单数据
+    const formData = {
+      customerName: document.getElementById('customerName').value,
+      customerEmail: document.getElementById('customerEmail').value,
+      fileName: document.getElementById('fileName').value,
+      quantity: document.getElementById('quantity').value,
+      material: document.getElementById('material').value,
+      finish: document.getElementById('finish').value,
+      precision: document.getElementById('precision').value,
+      note: document.getElementById('note').value
+    };
+    
+    console.log('提交测试数据:', formData);
+    
+    // 调用API创建测试订单
+    const response = await fetch(`${API_BASE}/create-test-draft-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
+    });
+    
+    const data = await response.json();
+    console.log('API响应:', data);
+    
+    if (data.success) {
+      // 成功
+      result.className = 'result success';
+      resultMessage.textContent = `✅ ${data.message}`;
+      
+      if (data.redirectUrl) {
+        viewOrderLink.href = data.redirectUrl;
+        viewOrderLink.style.display = 'inline';
+      }
+      
+      // 3秒后自动跳转
+      if (data.redirectUrl) {
+        setTimeout(() => {
+          window.location.href = data.redirectUrl;
+        }, 3000);
+      }
+    } else {
+      // 失败
+      result.className = 'result error';
+      resultMessage.textContent = `❌ ${data.message || '创建失败'}`;
+    }
+    
+    result.style.display = 'block';
+    
+  } catch (error) {
+    console.error('创建测试订单失败:', error);
+    
+    result.className = 'result error';
+    resultMessage.textContent = `❌ 创建失败: ${error.message}`;
+    result.style.display = 'block';
+  } finally {
+    // 隐藏加载状态
+    submitBtn.disabled = false;
+    loading.style.display = 'none';
+  }
+});
+</script>

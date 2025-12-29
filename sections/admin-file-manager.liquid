@@ -1,0 +1,1470 @@
+{% comment %}
+  后台文件管理页面 - 用于员工下载客户上传的文件
+  只有通过身份验证的客服人员才能访问
+{% endcomment %}
+
+<!-- 加载登录管理系统 -->
+<script src="{{ 'login-manager.js' | asset_url }}" defer></script>
+
+<!-- 报价中心API客户端（App Proxy） -->
+<script src="{{ 'quote-api.js' | asset_url }}" defer></script>
+
+<!-- 加载文件存储管理器 -->
+<script src="{{ 'file-storage.js' | asset_url }}" defer></script>
+
+<div class="admin-file-manager" id="admin-file-manager" style="display: none;">
+  <div class="admin-header">
+    <h1>客户历史订单记录</h1>
+    <p>查看客户的历史询价订单和文件信息</p>
+  </div>
+
+  <div class="admin-controls">
+    <div class="search-filters">
+      <input type="text" id="search-files" placeholder="搜索文件名或客户信息..." class="search-input">
+      <select id="filter-type" class="filter-select">
+        <option value="">所有文件类型</option>
+        <option value="3d">3D文件</option>
+        <option value="2d">2D文件</option>
+        <option value="zip">压缩包</option>
+      </select>
+      <select id="filter-date" class="filter-select">
+        <option value="">所有时间</option>
+        <option value="today">今天</option>
+        <option value="week">本周</option>
+        <option value="month">本月</option>
+      </select>
+    </div>
+    
+    <div class="bulk-actions">
+      <button id="refresh-files" class="btn btn--primary">🔄 刷新文件列表</button>
+      <button id="select-all" class="btn btn--ghost">全选</button>
+      <button id="download-selected" class="btn btn--primary" disabled>下载选中文件</button>
+      <button id="export-list" class="btn btn--ghost">导出列表</button>
+    </div>
+  </div>
+
+  <div class="files-table-container">
+    <table class="files-table" id="files-table">
+      <thead>
+        <tr>
+          <th class="checkbox-col">
+            <input type="checkbox" id="select-all-checkbox">
+          </th>
+          <th class="file-col">文件信息</th>
+          <th class="type-col">类型</th>
+          <th class="size-col">大小</th>
+          <th class="customer-col">客户信息</th>
+          <th class="date-col">上传时间</th>
+          <th class="status-col">状态</th>
+          <th class="actions-col">操作</th>
+        </tr>
+      </thead>
+      <tbody id="files-tbody">
+        <!-- 文件列表将通过JavaScript动态加载 -->
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination" id="pagination">
+    <!-- 分页控件 -->
+  </div>
+
+  <!-- 文件预览模态框 -->
+  <div id="file-preview-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="preview-title">文件预览</h3>
+        <button class="modal-close" id="close-preview">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="preview-content">
+          <!-- 预览内容 -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--primary" id="download-preview-file">下载文件</button>
+        <button class="btn btn--ghost" id="close-preview-btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 加载指示器 -->
+  <div id="loading-indicator" class="loading-indicator" style="display: none;">
+    <div class="spinner"></div>
+    <p>正在加载文件列表...</p>
+  </div>
+</div>
+
+<style>
+.admin-file-manager {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+.admin-header {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.admin-header h1 {
+  color: #333;
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.admin-header p {
+  color: #666;
+  margin: 0;
+  font-size: 16px;
+}
+
+.admin-controls {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.search-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input, .filter-select {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.search-input:focus, .filter-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.files-table-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.files-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.files-table th {
+  background: #f8f9fa;
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.files-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.files-table tr:hover {
+  background: #f8f9fa;
+}
+
+.checkbox-col { width: 40px; }
+.file-col { width: 300px; }
+.type-col { width: 80px; }
+.size-col { width: 100px; }
+.customer-col { width: 200px; }
+.date-col { width: 150px; }
+.status-col { width: 100px; }
+.actions-col { width: 120px; }
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-icon {
+  width: 32px;
+  height: 32px;
+  background: #e3f2fd;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1976d2;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.file-details h4 {
+  margin: 0 0 4px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.file-details p {
+  margin: 0;
+  color: #666;
+  font-size: 12px;
+}
+
+.file-type {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.file-type.3d { background: #e8f5e8; color: #2e7d32; }
+.file-type.2d { background: #fff3e0; color: #f57c00; }
+.file-type.zip { background: #e3f2fd; color: #1976d2; }
+
+.file-size {
+  color: #666;
+  font-size: 13px;
+}
+
+.customer-info {
+  color: #333;
+  font-size: 13px;
+}
+
+.upload-time {
+  color: #666;
+  font-size: 13px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.pending { background: #fff3e0; color: #f57c00; }
+.status-badge.processing { background: #e3f2fd; color: #1976d2; }
+.status-badge.completed { background: #e8f5e8; color: #2e7d32; }
+.status-badge.error { background: #ffebee; color: #c62828; }
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s ease;
+}
+
+.action-btn.download {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.action-btn.download:hover {
+  background: #1976d2;
+  color: white;
+}
+
+.action-btn.preview {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.action-btn.preview:hover {
+  background: #7b1fa2;
+  color: white;
+}
+
+.action-btn.delete {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.action-btn.delete:hover {
+  background: #c62828;
+  color: white;
+}
+
+/* 模态框样式 */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  background: white;
+  margin: 5% auto;
+  padding: 0;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.modal-body {
+  padding: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 加载指示器 */
+.loading-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  text-align: center;
+  z-index: 1001;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f0f0f0;
+  border-top: 4px solid #1976d2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 分页样式 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.pagination button {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.pagination button.active {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .admin-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-filters {
+    flex-direction: column;
+  }
+  
+  .search-input, .filter-select {
+    min-width: auto;
+  }
+  
+  .files-table-container {
+    overflow-x: auto;
+  }
+  
+  .files-table {
+    min-width: 800px;
+  }
+}
+</style>
+
+<script>
+// 后台文件管理JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+  const filesTable = document.getElementById('files-tbody');
+  const searchInput = document.getElementById('search-files');
+  const filterType = document.getElementById('filter-type');
+  const filterDate = document.getElementById('filter-date');
+  const refreshFilesBtn = document.getElementById('refresh-files');
+  const selectAllCheckbox = document.getElementById('select-all-checkbox');
+  const selectAllBtn = document.getElementById('select-all');
+  const downloadSelectedBtn = document.getElementById('download-selected');
+  const exportListBtn = document.getElementById('export-list');
+  const loadingIndicator = document.getElementById('loading-indicator');
+  const previewModal = document.getElementById('file-preview-modal');
+  
+  let allFiles = [];
+  let filteredFiles = [];
+  let selectedFiles = new Set();
+  
+  // 获取客户信息
+  async function getCustomerInfo() {
+    try {
+      // 首先尝试从全局客户状态获取
+      if (window.customerState && window.customerState.loggedIn) {
+        return {
+          name: window.customerState.customerName || '登录用户',
+          email: window.customerState.email || ''
+        };
+      }
+      
+      // 尝试从购物车API获取客户信息
+      try {
+        const response = await fetch('/cart.js');
+        const cart = await response.json();
+        
+        console.log('购物车客户信息检查:', {
+          attributes: cart.attributes,
+          note: cart.note,
+          customer: cart.customer
+        });
+        
+        // 检查购物车中是否有客户信息
+        if (cart.attributes && cart.attributes.customer_email) {
+          return {
+            name: cart.attributes.customer_name || '购物车客户',
+            email: cart.attributes.customer_email
+          };
+        }
+        
+        // 检查购物车note中是否有客户信息
+        if (cart.note) {
+          try {
+            const noteData = JSON.parse(cart.note);
+            if (noteData.customer_email) {
+              return {
+                name: noteData.customer_name || '购物车客户',
+                email: noteData.customer_email
+              };
+            }
+          } catch (parseError) {
+            console.log('购物车note不是JSON格式');
+          }
+        }
+      } catch (cartError) {
+        console.log('购物车API未提供客户信息');
+      }
+      
+      // 尝试从当前页面获取客户信息
+      const customerScript = document.querySelector('script[data-customer]');
+      if (customerScript) {
+        try {
+          const customerData = JSON.parse(customerScript.textContent);
+          return {
+            name: customerData.first_name + ' ' + customerData.last_name || '客户',
+            email: customerData.email || ''
+          };
+        } catch (parseError) {
+          console.log('无法解析客户数据');
+        }
+      }
+      
+      // 如果没有找到任何客户信息，返回默认值
+      return {
+        name: '未知客户',
+        email: ''
+      };
+    } catch (error) {
+      console.error('获取客户信息失败:', error);
+      return {
+        name: '未知客户',
+        email: ''
+      };
+    }
+  }
+
+  // 从报价中心API获取文件数据（优先），失败则回退到购物车API
+  async function fetchCartFiles() {
+    try {
+      if (window.quoteApi) {
+        const list = await window.quoteApi.list();
+        const files = [];
+        let fileId = 1;
+        (list.records || list || []).forEach(r => {
+          const name = r.file_name || '未知文件';
+          const ext = name.split('.').pop().toLowerCase();
+          let type = 'other';
+          if (['stp','step'].includes(ext)) type = '3d';
+          else if (['dwg','dxf','pdf'].includes(ext)) type = '2d';
+          else if (ext === 'zip') type = 'zip';
+          files.push({
+            id: fileId++,
+            name,
+            type,
+            size: 0,
+            customer: r.customer_name || '未知客户',
+            email: r.customer_email || '',
+            uploadTime: r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN'),
+            status: (r.status === 'Quoted' ? 'completed' : 'processing'),
+            downloadUrl: r.file_url || '',
+            cartItemKey: r.cart_item_key || '',
+            uuid: r.uuid || r.id
+          });
+        });
+        return files;
+      }
+      const response = await fetch('/cart.js');
+      const cart = await response.json();
+      
+      // 获取客户信息
+      const customerInfo = await getCustomerInfo();
+      console.log('获取到的客户信息:', customerInfo);
+      console.log('购物车数据:', cart);
+      
+      const files = [];
+      let fileId = 1;
+      
+      cart.items.forEach(item => {
+        // 检查是否是报价订单
+        let isQuoteOrder = false;
+        let customerName = '';
+        let customerEmail = '';
+        let uploadedFiles = [];
+        let uploadTime = '';
+        let quoteStatus = 'Pending';
+        
+        // 解析商品属性
+        if (item.properties) {
+          console.log('商品属性:', item.properties);
+          for (const [key, value] of Object.entries(item.properties)) {
+            if (key === 'Order Type' && value === '3D Model Quote') {
+              isQuoteOrder = true;
+            }
+            // 只使用一个文件名属性，避免重复
+            if (key === '零件名称' && value) {
+              uploadedFiles.push(value);
+            }
+            if (key === '客户姓名' || key === 'Customer Name') {
+              customerName = value;
+            }
+            if (key === '客户邮箱' || key === 'Customer Email') {
+              customerEmail = value;
+            }
+            if (key === 'Quote Status') {
+              quoteStatus = value;
+            }
+            if (key === '_uuid') {
+              // 从UUID中提取时间戳作为上传时间
+              const timestamp = parseInt(value.split('-')[0]);
+              if (timestamp) {
+                uploadTime = new Date(timestamp).toLocaleString('zh-CN');
+              }
+            }
+          }
+        }
+        
+        // 如果没有找到客户信息，使用默认的客户信息
+        if (!customerName) {
+          customerName = customerInfo.name;
+        }
+        if (!customerEmail) {
+          customerEmail = customerInfo.email;
+        }
+        
+        // 如果是报价订单且有上传文件，添加到文件列表
+        if (isQuoteOrder && uploadedFiles.length > 0) {
+          // 去重：只处理唯一的文件名
+          const uniqueFiles = [...new Set(uploadedFiles)];
+          
+          uniqueFiles.forEach(fileName => {
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            let fileType = 'other';
+            
+            if (['stp', 'step'].includes(fileExtension)) {
+              fileType = '3d';
+            } else if (['dwg', 'dxf', 'pdf'].includes(fileExtension)) {
+              fileType = '2d';
+            } else if (fileExtension === 'zip') {
+              fileType = 'zip';
+            }
+            
+            files.push({
+              id: fileId++,
+              name: fileName,
+              type: fileType,
+              size: 0, // 购物车API不提供文件大小
+              customer: customerName || customerInfo.name,
+              email: customerEmail || customerInfo.email,
+              uploadTime: uploadTime || new Date().toLocaleString('zh-CN'),
+              status: quoteStatus === 'Quoted' ? 'completed' : 'processing',
+              downloadUrl: '', // 需要从其他地方获取下载链接
+              cartItemKey: item.key,
+              uuid: item.properties?._uuid || ''
+            });
+          });
+        }
+      });
+      
+      // 全局去重：基于文件名和UUID去重
+      const uniqueFiles = [];
+      const seenFiles = new Set();
+      
+      files.forEach(file => {
+        const key = `${file.name}-${file.uuid}`;
+        if (!seenFiles.has(key)) {
+          seenFiles.add(key);
+          uniqueFiles.push(file);
+        }
+      });
+      
+      return uniqueFiles;
+    } catch (error) {
+      console.error('获取文件失败:', error);
+      return [];
+    }
+  }
+  
+  // 初始化
+  async function init() {
+    loadingIndicator.style.display = 'block';
+    try {
+      allFiles = await fetchCartFiles();
+    filteredFiles = [...allFiles];
+    renderFiles();
+    } catch (error) {
+      console.error('初始化失败:', error);
+      allFiles = [];
+      filteredFiles = [];
+      renderFiles();
+    } finally {
+      loadingIndicator.style.display = 'none';
+    }
+    setupEventListeners();
+  }
+  
+  // 设置事件监听器
+  function setupEventListeners() {
+    refreshFilesBtn.addEventListener('click', async () => {
+      loadingIndicator.style.display = 'block';
+      try {
+        allFiles = await fetchCartFiles();
+        filteredFiles = [...allFiles];
+        renderFiles();
+      } catch (error) {
+        console.error('刷新文件列表失败:', error);
+        alert('刷新文件列表失败，请稍后重试');
+      } finally {
+        loadingIndicator.style.display = 'none';
+      }
+    });
+    
+    searchInput.addEventListener('input', handleSearch);
+    filterType.addEventListener('change', handleFilter);
+    filterDate.addEventListener('change', handleFilter);
+    selectAllCheckbox.addEventListener('change', handleSelectAll);
+    selectAllBtn.addEventListener('click', handleSelectAllClick);
+    downloadSelectedBtn.addEventListener('click', handleDownloadSelected);
+    exportListBtn.addEventListener('click', handleExportList);
+    
+    // 模态框事件
+    document.getElementById('close-preview').addEventListener('click', closePreviewModal);
+    document.getElementById('close-preview-btn').addEventListener('click', closePreviewModal);
+    document.getElementById('download-preview-file').addEventListener('click', downloadPreviewFile);
+    
+    // 点击模态框外部关闭
+    previewModal.addEventListener('click', function(e) {
+      if (e.target === previewModal) {
+        closePreviewModal();
+      }
+    });
+  }
+  
+  // 渲染文件列表
+  function renderFiles() {
+    if (filteredFiles.length === 0) {
+      filesTable.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 40px; color: #666;">
+            ${allFiles.length === 0 ? '暂无上传的文件' : '没有找到匹配的文件'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
+    filesTable.innerHTML = filteredFiles.map(file => `
+      <tr>
+        <td>
+          <input type="checkbox" class="file-checkbox" data-file-id="${file.id}" 
+                 ${selectedFiles.has(file.id) ? 'checked' : ''}>
+        </td>
+        <td>
+          <div class="file-info">
+            <div class="file-icon">${getFileIcon(file.type)}</div>
+            <div class="file-details">
+              <h4>${file.name}</h4>
+              <p>${file.email || '未提供邮箱'}</p>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="file-type ${file.type}">${getTypeLabel(file.type)}</span>
+        </td>
+        <td>
+          <span class="file-size">${file.size > 0 ? formatFileSize(file.size) : '未知大小'}</span>
+        </td>
+        <td>
+          <div class="customer-info">
+            <div>${file.customer}</div>
+            <div style="color: #666; font-size: 12px;">${file.email || '未提供邮箱'}</div>
+          </div>
+        </td>
+        <td>
+          <span class="upload-time">${file.uploadTime}</span>
+        </td>
+        <td>
+          <span class="status-badge ${file.status}">${getStatusLabel(file.status)}</span>
+        </td>
+        <td>
+          <div class="action-buttons">
+            <button class="action-btn download" data-uuid="${file.uuid}" title="下载">
+              ⬇️
+            </button>
+            <button class="action-btn preview" data-uuid="${file.uuid}" title="预览">
+              👁️
+            </button>
+            <button class="action-btn delete" data-uuid="${file.uuid}" title="删除">
+              🗑️
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    
+    // 更新全选状态
+    updateSelectAllState();
+    
+    // 绑定操作按钮事件
+    bindActionButtons();
+  }
+  
+  // 绑定操作按钮事件
+  function bindActionButtons() {
+    // 使用事件委托处理动态生成的按钮
+    filesTable.addEventListener('click', function(e) {
+      const button = e.target.closest('.action-btn');
+      if (!button) return;
+      
+      const uuid = button.dataset.uuid;
+      if (!uuid) return;
+      
+      if (button.classList.contains('download')) {
+        downloadFile(uuid);
+      } else if (button.classList.contains('preview')) {
+        previewFile(uuid);
+      } else if (button.classList.contains('delete')) {
+        deleteFile(uuid);
+      }
+    });
+  }
+  
+  // 搜索处理
+  function handleSearch() {
+    const query = searchInput.value.toLowerCase();
+    filteredFiles = allFiles.filter(file => 
+      file.name.toLowerCase().includes(query) ||
+      file.customer.toLowerCase().includes(query) ||
+      file.email.toLowerCase().includes(query)
+    );
+    renderFiles();
+  }
+  
+  // 筛选处理
+  function handleFilter() {
+    const typeFilter = filterType.value;
+    const dateFilter = filterDate.value;
+    
+    filteredFiles = allFiles.filter(file => {
+      let matches = true;
+      
+      if (typeFilter && file.type !== typeFilter) {
+        matches = false;
+      }
+      
+      if (dateFilter) {
+        const fileDate = new Date(file.uploadTime);
+        const now = new Date();
+        
+        switch (dateFilter) {
+          case 'today':
+            matches = matches && fileDate.toDateString() === now.toDateString();
+            break;
+          case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            matches = matches && fileDate >= weekAgo;
+            break;
+          case 'month':
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            matches = matches && fileDate >= monthAgo;
+            break;
+        }
+      }
+      
+      return matches;
+    });
+    
+    renderFiles();
+  }
+  
+  // 全选处理
+  function handleSelectAll() {
+    const isChecked = selectAllCheckbox.checked;
+    const checkboxes = filesTable.querySelectorAll('.file-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = isChecked;
+      const fileId = parseInt(checkbox.dataset.fileId);
+      if (isChecked) {
+        selectedFiles.add(fileId);
+      } else {
+        selectedFiles.delete(fileId);
+      }
+    });
+    
+    updateDownloadButton();
+  }
+  
+  // 全选按钮点击
+  function handleSelectAllClick() {
+    selectAllCheckbox.checked = !selectAllCheckbox.checked;
+    handleSelectAll();
+  }
+  
+  // 更新全选状态
+  function updateSelectAllState() {
+    const checkboxes = filesTable.querySelectorAll('.file-checkbox');
+    const checkedCount = filesTable.querySelectorAll('.file-checkbox:checked').length;
+    
+    selectAllCheckbox.checked = checkedCount === checkboxes.length && checkboxes.length > 0;
+    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+  }
+  
+  // 更新下载按钮状态
+  function updateDownloadButton() {
+    downloadSelectedBtn.disabled = selectedFiles.size === 0;
+  }
+  
+  // 下载选中文件
+  function handleDownloadSelected() {
+    if (selectedFiles.size === 0) return;
+    
+    const selectedFileIds = Array.from(selectedFiles);
+    const selectedFileData = allFiles.filter(file => selectedFileIds.includes(file.id));
+    
+    // 创建ZIP下载（实际应用中需要服务器端支持）
+    downloadFilesAsZip(selectedFileData);
+  }
+  
+  // 导出列表
+  function handleExportList() {
+    const csvContent = generateCSV(filteredFiles);
+    downloadCSV(csvContent, '客户文件列表.csv');
+  }
+  
+  // 生成CSV内容
+  function generateCSV(files) {
+    const headers = ['文件名', '类型', '大小', '客户', '邮箱', '上传时间', '状态'];
+    const rows = files.map(file => [
+      file.name,
+      getTypeLabel(file.type),
+      formatFileSize(file.size),
+      file.customer,
+      file.email,
+      file.uploadTime,
+      getStatusLabel(file.status)
+    ]);
+    
+    return [headers, ...rows].map(row => row.join(',')).join('\n');
+  }
+  
+  // 下载CSV文件
+  function downloadCSV(content, filename) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  }
+  
+  // 关闭预览模态框
+  function closePreviewModal() {
+    previewModal.style.display = 'none';
+  }
+  
+  // 下载预览文件
+  function downloadPreviewFile() {
+    const fileId = previewModal.dataset.fileId;
+    const file = allFiles.find(f => f.id == fileId);
+    if (file) {
+      downloadFile(file.uuid);
+    }
+  }
+  
+  // 工具函数
+  function getFileIcon(type) {
+    const icons = {
+      '3d': '📦',
+      '2d': '📄',
+      'zip': '🗜️'
+    };
+    return icons[type] || '📁';
+  }
+  
+  function getTypeLabel(type) {
+    const labels = {
+      '3d': '3D',
+      '2d': '2D',
+      'zip': 'ZIP'
+    };
+    return labels[type] || type.toUpperCase();
+  }
+  
+  function getStatusLabel(status) {
+    const labels = {
+      'pending': '待处理',
+      'processing': '处理中',
+      'completed': '已完成',
+      'error': '错误'
+    };
+    return labels[status] || status;
+  }
+  
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+  
+  // 全局函数（供HTML调用）
+  window.downloadFile = function(fileId) {
+    const file = allFiles.find(f => f.id === fileId);
+    if (file) {
+      // 实际应用中应该调用服务器API
+      console.log('下载文件:', file.name);
+      // 模拟下载
+      const link = document.createElement('a');
+      link.href = file.downloadUrl;
+      link.download = file.name;
+      link.click();
+    }
+  };
+  
+  window.previewFile = function(fileId) {
+    const file = allFiles.find(f => f.id === fileId);
+    if (file) {
+      previewModal.dataset.fileId = fileId;
+      document.getElementById('preview-title').textContent = `预览: ${file.name}`;
+      document.getElementById('preview-content').innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">${getFileIcon(file.type)}</div>
+          <h4>${file.name}</h4>
+          <p>类型: ${getTypeLabel(file.type)}</p>
+          <p>大小: ${formatFileSize(file.size)}</p>
+          <p>客户: ${file.customer}</p>
+          <p>上传时间: ${file.uploadTime}</p>
+          <p>状态: ${getStatusLabel(file.status)}</p>
+        </div>
+      `;
+      previewModal.style.display = 'block';
+    }
+  };
+  
+  window.deleteFile = function(fileId) {
+    if (confirm('确定要删除这个文件吗？')) {
+      allFiles = allFiles.filter(f => f.id !== fileId);
+      filteredFiles = filteredFiles.filter(f => f.id !== fileId);
+      selectedFiles.delete(fileId);
+      renderFiles();
+      updateDownloadButton();
+    }
+  };
+  
+  // 下载文件
+  async function downloadFile(uuid) {
+    const file = allFiles.find(f => f.uuid === uuid);
+    if (!file) {
+      alert('文件不存在');
+      return;
+    }
+    
+    try {
+      // 获取完整的文件参数信息
+      const fileParams = await getFileParameters(uuid);
+      
+      // 检查是否有文件URL
+      if (fileParams.fileUrl) {
+        // 有文件URL，直接下载实际文件
+        downloadActualFile(fileParams.fileUrl, file.name);
+      } else {
+        // 没有文件URL，下载文件信息
+        downloadFileInfo(file, fileParams);
+      }
+    } catch (error) {
+      console.error('下载文件失败:', error);
+      alert('下载失败: ' + error.message);
+    }
+  }
+  
+  // 下载实际文件
+  function downloadActualFile(fileUrl, fileName) {
+    try {
+      // 检查是否是Data URL
+      if (fileUrl.startsWith('data:')) {
+        // 使用文件存储管理器下载
+        if (window.fileStorageManager) {
+          window.fileStorageManager.downloadFile(fileUrl, fileName);
+        } else {
+          // 备用方案：直接下载
+          const link = document.createElement('a');
+          link.href = fileUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        // 外部URL，通过下载页面
+        const downloadUrl = `/pages/file-download?file_url=${encodeURIComponent(fileUrl)}&file_name=${encodeURIComponent(fileName)}&auto_download=true`;
+        window.open(downloadUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('下载文件失败:', error);
+      alert('下载失败: ' + error.message);
+    }
+  }
+  
+  // 下载文件信息
+  function downloadFileInfo(file, fileParams) {
+    const fileInfo = {
+      fileName: file.name,
+      fileType: file.type,
+      customer: file.customer,
+      email: file.email,
+      uploadTime: file.uploadTime,
+      status: file.status,
+      uuid: file.uuid,
+      ...fileParams
+    };
+    
+    const content = `文件信息详情\n` +
+      `==================\n\n` +
+      `基本信息:\n` +
+      `文件名: ${fileInfo.fileName}\n` +
+      `类型: ${fileInfo.fileType}\n` +
+      `客户: ${fileInfo.customer}\n` +
+      `邮箱: ${fileInfo.email}\n` +
+      `上传时间: ${fileInfo.uploadTime}\n` +
+      `状态: ${fileInfo.status}\n` +
+      `UUID: ${fileInfo.uuid}\n\n` +
+      `文件参数:\n` +
+      `数量: ${fileInfo.quantity}\n` +
+      `单位: ${fileInfo.unit}\n` +
+      `材料: ${fileInfo.material}\n` +
+      `颜色与表面: ${fileInfo.finish}\n` +
+      `精度等级: ${fileInfo.precision}\n` +
+      `公差标准: ${fileInfo.tolerance}\n` +
+      `表面粗糙度: ${fileInfo.roughness}\n` +
+      `是否有螺纹: ${fileInfo.hasThread}\n` +
+      `是否有装配标记: ${fileInfo.hasAssembly}\n` +
+      `缩放比例: ${fileInfo.scale}%\n` +
+      `尺寸: ${fileInfo.dimensions}\n` +
+      `备注: ${fileInfo.note}\n` +
+      `文件ID: ${fileInfo.fileId}\n\n` +
+      `注意：实际文件需要从服务器文件存储位置获取。`;
+    
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${file.name}_详情.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  }
+
+  // 预览文件
+  async function previewFile(uuid) {
+    const file = allFiles.find(f => f.uuid === uuid);
+    if (file) {
+      previewModal.dataset.fileId = file.id;
+      document.getElementById('preview-title').textContent = file.name;
+      
+      // 显示加载状态
+      document.getElementById('preview-content').innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 24px; margin-bottom: 16px;">⏳</div>
+          <p>正在加载文件参数...</p>
+        </div>
+      `;
+      previewModal.style.display = 'block';
+      
+      // 获取完整的文件参数信息
+      const fileParams = await getFileParameters(uuid);
+      
+      document.getElementById('preview-content').innerHTML = `
+        <div style="padding: 20px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">${getFileIcon(file.type)}</div>
+            <h3 style="margin: 0 0 8px 0;">${file.name}</h3>
+            <p style="margin: 0; color: #666;">${getTypeLabel(file.type)} 文件</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 12px 0; color: #333;">客户信息</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px; margin-bottom: 16px;">
+              <div><strong>客户姓名:</strong> ${file.customer}</div>
+              <div><strong>邮箱:</strong> ${file.email || '未提供'}</div>
+              <div><strong>上传时间:</strong> ${file.uploadTime}</div>
+              <div><strong>状态:</strong> <span class="status-badge ${file.status}">${getStatusLabel(file.status)}</span></div>
+            </div>
+          </div>
+          
+          <div style="background: #fff3e0; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 12px 0; color: #333;">文件参数</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
+              <div><strong>数量:</strong> ${fileParams.quantity || '1'}</div>
+              <div><strong>单位:</strong> ${fileParams.unit || '件'}</div>
+              <div><strong>材料:</strong> ${fileParams.material || '未指定'}</div>
+              <div><strong>颜色与表面:</strong> ${fileParams.finish || '未指定'}</div>
+              <div><strong>精度等级:</strong> ${fileParams.precision || '未指定'}</div>
+              <div><strong>公差标准:</strong> ${fileParams.tolerance || '未指定'}</div>
+              <div><strong>表面粗糙度:</strong> ${fileParams.roughness || '未指定'}</div>
+              <div><strong>是否有螺纹:</strong> ${fileParams.hasThread || '否'}</div>
+              <div><strong>是否有装配标记:</strong> ${fileParams.hasAssembly || '否'}</div>
+              <div><strong>缩放比例:</strong> ${fileParams.scale || '100'}%</div>
+              <div><strong>尺寸:</strong> ${fileParams.dimensions || '未计算'}</div>
+              <div><strong>备注:</strong> ${fileParams.note || '无'}</div>
+            </div>
+          </div>
+          
+          <div style="background: #e8f5e8; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 12px 0; color: #333;">技术信息</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
+              <div><strong>文件ID:</strong> ${fileParams.fileId || '未知'}</div>
+              <div><strong>UUID:</strong> ${file.uuid}</div>
+              <div><strong>购物车项:</strong> ${file.cartItemKey}</div>
+              <div><strong>文件大小:</strong> ${file.size > 0 ? formatFileSize(file.size) : '未知'}</div>
+            </div>
+          </div>
+          
+          <div style="background: #e3f2fd; padding: 12px; border-radius: 6px; border-left: 4px solid #1976d2;">
+            <p style="margin: 0; color: #1976d2; font-size: 14px;">
+              <strong>注意：</strong>这是从购物车获取的完整文件信息。实际文件预览需要配置文件存储服务支持。
+            </p>
+          </div>
+        </div>
+      `;
+      previewModal.style.display = 'block';
+    }
+  }
+  
+  // 获取文件参数信息
+  async function getFileParameters(uuid) {
+    try {
+      // 从购物车API获取最新的数据
+      const response = await fetch('/cart.js');
+      const cart = await response.json();
+      
+      // 查找匹配的商品项
+      const item = cart.items.find(item => 
+        item.properties && item.properties._uuid === uuid
+      );
+      
+      if (item && item.properties) {
+        return {
+          quantity: item.quantity || '1',
+          unit: item.properties.单位 || '件',
+          material: item.properties.材料 || '未指定',
+          finish: item.properties['颜色与表面'] || '未指定',
+          precision: item.properties.精度等级 || '未指定',
+          tolerance: item.properties.公差标准 || '未指定',
+          roughness: item.properties.表面粗糙度 || '未指定',
+          hasThread: item.properties.是否有螺纹 || '否',
+          hasAssembly: item.properties.是否有装配标记 || '否',
+          scale: item.properties.缩放比例 || '100',
+          dimensions: item.properties.尺寸 || '未计算',
+          note: item.properties.备注 || '无',
+          fileId: item.properties.文件ID || '未知',
+          fileUrl: item.properties.文件URL || item.properties['上传文件'] || null
+        };
+      }
+    } catch (error) {
+      console.error('获取文件参数失败:', error);
+    }
+    
+    // 如果获取失败，返回默认值
+    return {
+      quantity: '1',
+      unit: '件',
+      material: '未指定',
+      finish: '未指定',
+      precision: '未指定',
+      tolerance: '未指定',
+      roughness: '未指定',
+      hasThread: '否',
+      hasAssembly: '否',
+      scale: '100',
+      dimensions: '未计算',
+      note: '无',
+      fileId: '未知'
+    };
+  }
+
+  // 删除文件
+  async function deleteFile(uuid) {
+    const file = allFiles.find(f => f.uuid === uuid);
+    if (!file) {
+      alert('文件不存在');
+      return;
+    }
+    
+    if (confirm(`确定要删除文件 "${file.name}" 吗？\n\n这将从购物车中移除对应的商品项。`)) {
+      try {
+        // 从购物车中删除对应的商品项
+        const response = await fetch('/cart/change.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            id: file.cartItemKey,
+            quantity: 0
+          })
+        });
+        
+        if (response.ok) {
+          // 从本地列表中移除
+          allFiles = allFiles.filter(f => f.uuid !== uuid);
+          filteredFiles = allFiles.filter(file => {
+            const query = searchInput.value.toLowerCase();
+            const typeFilter = filterType.value;
+            const dateFilter = filterDate.value;
+            
+            let matches = true;
+            
+            if (query && !file.name.toLowerCase().includes(query) && 
+                !file.customer.toLowerCase().includes(query) && 
+                !file.email.toLowerCase().includes(query)) {
+              matches = false;
+            }
+            
+            if (typeFilter && file.type !== typeFilter) {
+              matches = false;
+            }
+            
+            if (dateFilter) {
+              const fileDate = new Date(file.uploadTime);
+              const now = new Date();
+              
+              switch (dateFilter) {
+                case 'today':
+                  matches = matches && fileDate.toDateString() === now.toDateString();
+                  break;
+                case 'week':
+                  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                  matches = matches && fileDate >= weekAgo;
+                  break;
+                case 'month':
+                  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                  matches = matches && fileDate >= monthAgo;
+                  break;
+              }
+            }
+            
+            return matches;
+          });
+          renderFiles();
+          alert('文件已成功删除');
+        } else {
+          throw new Error('删除失败');
+        }
+      } catch (error) {
+        console.error('删除文件失败:', error);
+        alert('删除文件失败，请稍后重试');
+      }
+    }
+  }
+
+  // 下载文件为ZIP
+  function downloadFilesAsZip(files) {
+    alert('批量下载功能需要服务器端支持。\n\n当前可以单独下载文件，或导出文件列表。');
+  }
+
+  // 检查客服身份验证
+  function checkAdminAuth() {
+    if (!window.loginManager) {
+      console.error('登录管理系统未加载');
+      showAuthRequired();
+      return false;
+    }
+    
+    const hasAccess = window.loginManager.hasAdminAccess();
+    
+    if (!hasAccess) {
+      showAuthRequired();
+      return false;
+    }
+    
+    return true;
+  }
+  
+  // 显示需要身份验证的提示
+  function showAuthRequired() {
+    document.body.innerHTML = `
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #f5f7fa;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      ">
+        <div style="
+          background: white;
+          padding: 40px;
+          border-radius: 12px;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+          text-align: center;
+          max-width: 400px;
+        ">
+          <div style="font-size: 48px; margin-bottom: 20px;">🔐</div>
+          <h1 style="margin-bottom: 15px; color: #333;">需要客服身份验证</h1>
+          <p style="color: #666; margin-bottom: 30px;">此页面仅限客服人员访问</p>
+          <button onclick="window.location.href='/pages/admin-login'" style="
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+          ">前往登录</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  // 初始化应用
+  // 等待登录管理系统加载
+  setTimeout(() => {
+    if (checkAdminAuth()) {
+      document.getElementById('admin-file-manager').style.display = 'block';
+      init();
+    }
+  }, 100);
+});
+</script>

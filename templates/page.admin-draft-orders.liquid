@@ -1,0 +1,1384 @@
+{% comment %}
+  Draft Order 管理页面 - 显示和管理Shopify Draft Orders
+  安全：需要管理员密码验证
+{% endcomment %}
+
+<!-- 当前登录邮箱（用于前端校验） -->
+<div id="customer-email" data-email="{{ customer.email | downcase | escape }}" data-tags="{{ customer.tags | join: ',' | downcase | escape }}"></div>
+
+<!-- 管理员登录验证界面 -->
+<div id="admin-login-screen" class="admin-login-screen">
+  <div class="login-card">
+    <div class="login-header">
+      <span class="login-icon">🔐</span>
+      <h2>管理员验证</h2>
+      <p>请输入管理员密码以访问草稿订单管理</p>
+    </div>
+    <div class="login-body">
+      <input 
+        type="password" 
+        id="admin-password-input" 
+        class="password-input" 
+        placeholder="请输入管理员密码"
+        onkeypress="if(event.key==='Enter') verifyAdminPassword()"
+      >
+      <button class="login-btn" onclick="verifyAdminPassword()">
+        <span class="btn-icon">🔓</span>
+        验证登录
+      </button>
+      <div id="login-error" class="login-error" style="display: none;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="admin-dashboard" id="admin-content" style="display: none;">
+  <!-- 页面标题 -->
+  <div class="page-header">
+    <h1 class="page-title">
+      <span class="title-icon">📋</span>
+      Draft Order 报价管理
+    </h1>
+    <div class="header-actions">
+      <button class="refresh-btn" onclick="refreshOrders()">
+        <span class="btn-icon">🔄</span>
+        刷新
+      </button>
+    </div>
+  </div>
+
+  <!-- 统计卡片 -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">⏳</div>
+      <div class="stat-number" id="pending-count">0</div>
+      <div class="stat-label">待报价</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-number" id="quoted-count">0</div>
+      <div class="stat-label">已报价</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-number" id="total-count">0</div>
+      <div class="stat-label">总计</div>
+    </div>
+  </div>
+
+  <!-- 过滤器 -->
+  <div class="filter-section">
+    <button class="filter-btn active" data-status="all">全部</button>
+    <button class="filter-btn" data-status="pending">待报价</button>
+    <button class="filter-btn" data-status="quoted">已报价</button>
+  </div>
+
+  <!-- 订单列表 -->
+  <div class="orders-container">
+    <div id="orders-list" class="orders-list">
+      <!-- 订单将通过JavaScript动态加载 -->
+    </div>
+  </div>
+
+  <!-- 报价模态框 -->
+  <div id="quote-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>添加报价</h3>
+        <span class="close" onclick="closeQuoteModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>询价单号:</label>
+          <input type="text" id="quote-id" readonly>
+        </div>
+        <div class="form-group">
+          <label>客户邮箱:</label>
+          <input type="text" id="customer-email" readonly>
+        </div>
+        <div class="form-group">
+          <label>报价金额 ($):</label>
+          <input type="number" id="quote-amount" placeholder="请输入报价金额" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>备注:</label>
+          <textarea id="quote-note" placeholder="请输入报价备注" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeQuoteModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitQuote()">确认报价</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* 管理员登录界面样式 */
+  .admin-login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+  }
+
+  .login-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    padding: 40px;
+    max-width: 400px;
+    width: 100%;
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .login-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 15px;
+  }
+
+  .login-header h2 {
+    color: #333;
+    margin: 0 0 10px 0;
+    font-size: 24px;
+  }
+
+  .login-header p {
+    color: #666;
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .login-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .password-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+  }
+
+  .password-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+  }
+
+  .login-btn {
+    width: 100%;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+  }
+
+  .login-btn:active {
+    transform: translateY(0);
+  }
+
+  .login-error {
+    color: #dc3545;
+    font-size: 14px;
+    padding: 10px;
+    background: #fee;
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .admin-dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e1e5e9;
+  }
+
+  .page-title {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    font-size: 28px;
+    color: #2c3e50;
+  }
+
+  .title-icon {
+    margin-right: 10px;
+    font-size: 32px;
+  }
+
+  .refresh-btn {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+  }
+
+  .refresh-btn:hover {
+    background: #2980b9;
+  }
+
+
+  .btn-icon {
+    margin-right: 5px;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+
+  .stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+
+  .stat-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 5px;
+  }
+
+  .stat-label {
+    color: #7f8c8d;
+    font-size: 14px;
+  }
+
+  .filter-section {
+    margin-bottom: 20px;
+  }
+
+  .filter-btn {
+    padding: 8px 16px;
+    margin-right: 10px;
+    background: #ecf0f1;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+
+  .filter-btn.active {
+    background: #3498db;
+    color: white;
+  }
+
+  .orders-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+  }
+
+  .orders-list {
+    min-height: 200px;
+  }
+
+  .order-item {
+    padding: 20px;
+    border-bottom: 1px solid #ecf0f1;
+    transition: background 0.3s;
+  }
+
+  .order-item:hover {
+    background: #f8f9fa;
+  }
+
+  .order-item:last-child {
+    border-bottom: none;
+  }
+
+  .order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .order-id {
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  .order-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .status-pending {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .status-quoted {
+    background: #d4edda;
+    color: #155724;
+  }
+
+
+  .order-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 15px;
+    color: #7f8c8d;
+  }
+  
+  .order-params {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 13px;
+  }
+  
+  .param-item {
+    display: inline-block;
+    margin-right: 15px;
+    margin-bottom: 5px;
+    color: #555;
+  }
+  
+  .param-item strong {
+    color: #333;
+    margin-right: 5px;
+  }
+
+  .order-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .action-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.3s;
+  }
+
+  .action-btn.quote {
+    background: #28a745;
+    color: white;
+  }
+
+  .action-btn.quote:hover {
+    background: #218838;
+  }
+
+  .action-btn.download {
+    background: #17a2b8;
+    color: white;
+  }
+
+  .action-btn.download:hover {
+    background: #138496;
+  }
+
+  .action-btn.preview {
+    background: #6c757d;
+    color: white;
+  }
+
+  .action-btn.preview:hover {
+    background: #545b62;
+  }
+
+  .action-btn.guide {
+    background: #ffc107;
+    color: #212529;
+  }
+
+  .action-btn.guide:hover {
+    background: #e0a800;
+  }
+
+  .action-btn.delete {
+    background: #dc3545;
+    color: white;
+  }
+
+  .action-btn.delete:hover {
+    background: #c82333;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #7f8c8d;
+  }
+
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+  }
+
+  /* 模态框样式 */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+  }
+
+  .modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+
+  .modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #ecf0f1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    color: #2c3e50;
+  }
+
+  .close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .close:hover {
+    color: #000;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #2c3e50;
+    font-weight: 500;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  .modal-footer {
+    padding: 20px;
+    border-top: 1px solid #ecf0f1;
+    text-align: right;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+  }
+
+  .btn-primary {
+    background: #3498db;
+    color: white;
+  }
+
+  .btn-secondary {
+    background: #95a5a6;
+    color: white;
+  }
+
+  .btn:hover {
+    opacity: 0.9;
+  }
+
+  .action-btn.email {
+    background: #27ae60;
+    color: white;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .action-btn.email:hover {
+    background: #219a52;
+  }
+</style>
+
+<script>
+  // 管理员白名单（如需新增，追加邮箱即可）
+  const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com'];
+  const customerEl = document.getElementById('customer-email');
+  const customerEmail = (customerEl?.dataset.email || '').trim().toLowerCase();
+  const customerTags = (customerEl?.dataset.tags || '').split(',').map(t => t.trim());
+  const isAdminUser = ADMIN_EMAILS.includes(customerEmail) || customerTags.includes('admin');
+  const SESSION_KEY = 'admin_authenticated';
+  const SESSION_EXPIRY_KEY = 'admin_session_expiry';
+
+  // 检查会话是否有效
+  function checkAdminSession() {
+    const isAuth = sessionStorage.getItem(SESSION_KEY);
+    const expiry = sessionStorage.getItem(SESSION_EXPIRY_KEY);
+    
+    if (isAuth === 'true' && expiry && Date.now() < parseInt(expiry)) {
+      // 会话有效
+      showAdminContent();
+      return true;
+    }
+    
+    // 会话无效或过期
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_EXPIRY_KEY);
+    showLoginScreen();
+    return false;
+  }
+
+  // 验证管理员密码（当前版本直接依赖邮箱白名单，不再使用密码）
+  function verifyAdminPassword() {
+    // 已由邮箱校验保护，这里直接放行
+    const expiry = Date.now() + (2 * 60 * 60 * 1000);
+    sessionStorage.setItem(SESSION_KEY, 'true');
+    sessionStorage.setItem(SESSION_EXPIRY_KEY, expiry.toString());
+    showAdminContent();
+    loadOrders();
+  }
+
+  // 显示登录界面
+  function showLoginScreen() {
+    document.getElementById('admin-login-screen').style.display = 'flex';
+    document.getElementById('admin-content').style.display = 'none';
+    setTimeout(() => {
+      document.getElementById('admin-password-input').focus();
+    }, 300);
+  }
+
+  // 显示管理内容
+  function showAdminContent() {
+    document.getElementById('admin-login-screen').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'block';
+  }
+
+  // 页面加载时检查会话
+  document.addEventListener('DOMContentLoaded', function() {
+    // 必须先登录客户账号
+    if (!customerEmail) {
+      document.getElementById('admin-login-screen').style.display = 'none';
+      document.getElementById('admin-content').style.display = 'none';
+      const warn = document.createElement('div');
+      warn.style.cssText = 'padding:40px;text-align:center;color:#c00;font-size:16px;';
+      warn.innerHTML = '请先登录管理员账户后访问此页面。';
+      document.body.prepend(warn);
+      return;
+    }
+
+    // 非白名单账号直接拒绝
+    if (!isAdminUser) {
+      document.getElementById('admin-login-screen').style.display = 'none';
+      document.getElementById('admin-content').style.display = 'none';
+      const warn = document.createElement('div');
+      warn.style.cssText = 'padding:40px;text-align:center;color:#c00;font-size:16px;';
+      warn.innerHTML = '当前账户无权限访问草稿订单管理。';
+      document.body.prepend(warn);
+      return;
+    }
+
+    // 管理员直接通过（不再要求输入密码）
+    const expiry = Date.now() + (2 * 60 * 60 * 1000);
+    sessionStorage.setItem(SESSION_KEY, 'true');
+    sessionStorage.setItem(SESSION_EXPIRY_KEY, expiry.toString());
+    showAdminContent();
+    loadOrders();
+  });
+
+  // API配置
+  const API_BASE = 'https://shopify-13s4.vercel.app/api';
+  
+  // 全局变量
+  let currentOrders = [];
+  let currentFilter = 'all';
+  
+
+  // 页面加载时初始化
+  document.addEventListener('DOMContentLoaded', function() {
+    loadOrders();
+    setupEventListeners();
+  });
+  
+  // 设置事件监听器
+  function setupEventListeners() {
+    // 过滤器按钮
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentFilter = this.dataset.status;
+        renderOrders();
+      });
+    });
+  }
+  
+  // 获取订单状态文本
+  function getOrderStatusText(order) {
+    return order.status === 'pending' ? '待报价' : '已报价';
+  }
+
+
+  // 加载订单列表
+  async function loadOrders() {
+    try {
+      console.log('开始加载Draft Orders...');
+      
+      // 调用API获取Draft Orders
+      const response = await fetch(`${API_BASE}/get-draft-orders?admin=1&email=${encodeURIComponent(customerEmail)}`);
+      
+      if (!response.ok) {
+        throw new Error(`API调用失败: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('API响应数据:', data);
+      console.log('data.success:', data.success);
+      console.log('data.draftOrders:', data.draftOrders);
+      console.log('draftOrders长度:', data.draftOrders ? data.draftOrders.length : 'undefined');
+      
+      if (data.success && data.draftOrders) {
+        currentOrders = data.draftOrders.map(order => ({
+          id: order.id,
+          name: order.name,
+          email: order.email,
+          status: order.status === 'pending' ? 'pending' : 'quoted',
+          totalPrice: order.totalPrice,
+          createdAt: order.createdAt,
+          invoiceUrl: order.invoiceUrl,
+          fileId: order.fileId,
+          fileData: order.fileData,
+          note: order.note,
+          lineItems: order.lineItems
+        }));
+        
+        console.log('处理后的订单:', currentOrders);
+        console.log('实际渲染的订单数量:', currentOrders.length);
+        
+      } else {
+        currentOrders = [];
+        console.log('没有找到Draft Orders');
+      }
+      
+      renderOrders();
+      updateStats();
+      
+    } catch (error) {
+      console.error('加载订单失败:', error);
+      
+      // 显示错误状态
+      document.getElementById('orders-list').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">❌</div>
+          <div>加载失败: ${error.message}</div>
+          <button class="refresh-btn" onclick="loadOrders()" style="margin-top: 20px;">
+            <span class="btn-icon">🔄</span>
+            重试
+          </button>
+        </div>
+      `;
+    }
+  }
+  
+  // 渲染订单列表
+  function renderOrders() {
+    const ordersList = document.getElementById('orders-list');
+    
+    // 过滤订单
+    let filteredOrders = currentOrders;
+    if (currentFilter !== 'all') {
+      filteredOrders = currentOrders.filter(order => order.status === currentFilter);
+    }
+    
+    if (filteredOrders.length === 0) {
+      ordersList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div>暂无订单</div>
+        </div>
+      `;
+      return;
+    }
+    
+    console.log('准备渲染的订单数量:', filteredOrders.length);
+    console.log('过滤后的订单:', filteredOrders);
+    
+    ordersList.innerHTML = filteredOrders.map(order => `
+      <div class="order-item">
+        <div class="order-header">
+          <div class="order-id">${order.name}</div>
+          <div class="order-status status-${order.status}">
+            ${getOrderStatusText(order)}
+          </div>
+        </div>
+        <div class="order-info">
+          <div>
+            <div><strong>客户邮箱:</strong> ${order.email || '未提供'}</div>
+            <div><strong>创建时间:</strong> ${new Date(order.createdAt).toLocaleString('zh-CN')}</div>
+          </div>
+          <div>
+            <div><strong>商品:</strong> ${order.lineItems?.[0]?.title || '未指定'}</div>
+            <div><strong>价格:</strong> $${order.totalPrice || '0.00'}</div>
+          </div>
+        </div>
+        ${order.lineItems?.[0]?.customAttributes ? `
+        <div class="order-params">
+          ${order.lineItems[0].customAttributes.map(attr => {
+            const importantParams = [
+              '材料', '颜色', '精度', '表面粗糙度', '精度等级', '公差标准', '颜色与表面',
+              '是否有螺纹', '是否有装配标记', '缩放比例'
+            ];
+            
+            if (importantParams.includes(attr.key)) {
+              let displayValue = attr.value || '未指定';
+              
+              // 特殊处理某些字段的显示
+              if (attr.key === '是否有螺纹' || attr.key === '是否有装配标记') {
+                displayValue = attr.value === 'yes' ? '是' : '否';
+              } else if (attr.key === '缩放比例') {
+                displayValue = attr.value ? attr.value + '%' : '未指定';
+              }
+              
+              return `<div class="param-item"><strong>${attr.key}:</strong> ${displayValue}</div>`;
+            }
+            return '';
+          }).filter(item => item).join('')}
+        </div>
+        ` : ''}
+        <div class="order-actions">
+          <button class="action-btn download" onclick="downloadOrderFile('${order.id}')" title="下载文件">
+            📄
+          </button>
+          <button class="action-btn preview" onclick="previewOrderFile('${order.id}')" title="预览文件">
+            👁️
+          </button>
+          ${order.status === 'pending' ? `
+            <button class="action-btn quote" onclick="openQuoteModal('${order.id}', '${order.email}', '${order.name}')">
+              💰 添加报价
+            </button>
+          ` : `
+            <button class="action-btn" onclick="viewQuote('${order.id}')">
+              👁️ 查看报价
+            </button>
+            <button class="action-btn email" onclick="sendInvoiceEmail('${order.id}', '${order.email}', '${order.name}')" title="发送发票邮件">
+              📧 发送邮件
+            </button>
+          `}
+          <button class="action-btn guide" onclick="showCustomerGuide('${order.id}', '${order.email}')" title="客户操作指南">
+            📋
+          </button>
+          <button class="action-btn delete" onclick="deleteQuote('${order.id}')" title="删除">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  // 更新统计信息
+  function updateStats() {
+    const pendingCount = currentOrders.filter(o => o.status === 'pending').length;
+    const quotedCount = currentOrders.filter(o => o.status === 'quoted').length;
+    const totalCount = currentOrders.length;
+    
+    document.getElementById('pending-count').textContent = pendingCount;
+    document.getElementById('quoted-count').textContent = quotedCount;
+    document.getElementById('total-count').textContent = totalCount;
+  }
+  
+  // 刷新订单
+  function refreshOrders() {
+    loadOrders();
+  }
+
+  
+  // 打开报价模态框
+  function openQuoteModal(orderId, email, orderName) {
+    document.getElementById('quote-id').value = orderName;
+    document.getElementById('customer-email').value = email;
+    document.getElementById('quote-amount').value = '';
+    document.getElementById('quote-note').value = '';
+    
+    // 保存当前订单ID
+    window.currentQuoteOrderId = orderId;
+    
+    document.getElementById('quote-modal').style.display = 'block';
+  }
+  
+  // 关闭报价模态框
+  function closeQuoteModal() {
+    document.getElementById('quote-modal').style.display = 'none';
+    window.currentQuoteOrderId = null;
+  }
+  
+  // 提交报价
+  async function submitQuote() {
+    const amount = document.getElementById('quote-amount').value;
+    const note = document.getElementById('quote-note').value;
+    
+    if (!amount || parseFloat(amount) <= 0) {
+      alert('请输入有效的报价金额');
+      return;
+    }
+    
+    if (!window.currentQuoteOrderId) {
+      alert('订单ID丢失，请重新操作');
+      return;
+    }
+    
+    try {
+      console.log('提交报价:', { orderId: window.currentQuoteOrderId, amount, note });
+      
+      const response = await fetch(`${API_BASE}/update-quote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          draftOrderId: window.currentQuoteOrderId,
+          amount: parseFloat(amount),
+          note: note
+        })
+      });
+      
+      const data = await response.json();
+      console.log('报价提交响应:', data);
+      
+      if (data.success) {
+        alert('报价提交成功！');
+        closeQuoteModal();
+        loadOrders(); // 重新加载订单列表
+      } else {
+        alert('报价提交失败: ' + (data.message || '未知错误'));
+      }
+      
+    } catch (error) {
+      console.error('报价提交失败:', error);
+      alert('报价提交失败: ' + error.message);
+    }
+  }
+  
+  // 查看报价
+  function viewQuote(orderId) {
+    // 跳转到询价详情页面
+    window.open(`/pages/my-quotes?id=${orderId}`, '_blank');
+  }
+
+  // 发送发票邮件
+  async function sendInvoiceEmail(orderId, customerEmail, orderName) {
+    try {
+      console.log('开始发送发票邮件:', { orderId, customerEmail, orderName });
+      
+      // 确认发送
+      if (!confirm(`确认向客户发送发票邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含结账链接和订单详情。`)) {
+        return;
+      }
+      
+      const response = await fetch(`${API_BASE}/send-invoice-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          draftOrderId: orderId,
+          customMessage: `您的3D打印报价已完成！\n\n订单号: ${orderName}\n请点击下方的结账链接查看详情并完成付款。\n\n如有任何问题，请联系我们的客服团队。\n\n感谢您选择我们的服务！`
+        })
+      });
+      
+      const data = await response.json();
+      console.log('发送邮件响应:', data);
+      
+      if (data.success) {
+        alert(`✅ 发票邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n💰 金额: $${data.totalPrice}\n🔗 结账链接: ${data.invoiceUrl}`);
+      } else {
+        alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
+      }
+      
+    } catch (error) {
+      console.error('发送邮件失败:', error);
+      alert('❌ 发送邮件失败: ' + error.message);
+    }
+  }
+
+  // 下载订单文件（基于之前工作版本的实现）
+  async function downloadOrderFile(orderId) {
+    try {
+      console.log('开始下载文件，订单ID:', orderId);
+      
+      const order = currentOrders.find(o => o.id === orderId);
+      if (!order) {
+        alert('未找到订单信息');
+        return;
+      }
+
+      console.log('订单详情:', order);
+      console.log('lineItems:', order.lineItems);
+
+      if (!order.lineItems || order.lineItems.length === 0) {
+        alert('订单中没有商品信息');
+        return;
+      }
+
+      // 从订单获取文件信息
+      const fileName = order.lineItems?.[0]?.title || '未知文件';
+      const invoiceUrl = order.invoiceUrl;
+      const fileId = order.fileId;
+      const fileData = order.fileData;
+      
+      // 获取文件存储方式信息
+      const storageMethod = order.lineItems?.[0]?.customAttributes?.find(attr => attr.key === '文件存储方式')?.value;
+      const shopifyFileId = order.lineItems?.[0]?.customAttributes?.find(attr => attr.key === 'Shopify文件ID')?.value;
+      
+      console.log('订单文件信息:', { 
+        fileName, 
+        invoiceUrl, 
+        fileId, 
+        fileData: fileData ? '有数据' : '无数据',
+        storageMethod,
+        shopifyFileId
+      });
+
+      // 按照文档标准流程：使用标准的downloadFile函数
+      await downloadFile(fileData || fileId, fileName);
+    } catch (error) {
+      console.error('下载文件失败:', error);
+      alert('下载文件失败: ' + error.message);
+    }
+  }
+
+  // 标准文件下载函数 - 按照文档流程（基于之前工作版本）
+  async function downloadFile(url, fileName) {
+    try {
+      console.log('downloadFile调用:', { url: url ? url.substring(0, 100) + '...' : 'null', fileName });
+      
+      // 检查 URL 类型（data:、http://、https://）
+      if (url && url.startsWith('data:')) {
+        // Base64 数据，直接下载
+        console.log('✅ 检测到Base64数据，直接下载');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log('✅ Base64文件下载完成:', fileName);
+        return;
+      }
+      
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        // HTTP/HTTPS URL，直接下载
+        console.log('✅ 检测到HTTP URL，直接下载');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log('✅ HTTP文件下载完成:', fileName);
+        return;
+      }
+      
+      // 其他情况，通过API下载
+      if (url) {
+        console.log('✅ 通过API下载文件');
+        const response = await fetch(`${API_BASE}/download-file?id=${encodeURIComponent(url)}`);
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(downloadUrl);
+          console.log('✅ API文件下载完成:', fileName);
+          return;
+        } else {
+          throw new Error(`API下载失败: ${response.status}`);
+        }
+      }
+      
+      throw new Error('没有可用的文件数据或URL');
+      
+    } catch (error) {
+      console.error('downloadFile失败:', error);
+      alert('文件下载失败: ' + error.message);
+    }
+  }
+
+
+
+  // 预览订单文件
+  async function previewOrderFile(orderId) {
+    try {
+      const order = currentOrders.find(o => o.id === orderId);
+      if (!order) {
+        alert('未找到订单信息');
+        return;
+      }
+
+      const lineItem = order.lineItems[0];
+      const customAttributes = lineItem.customAttributes || [];
+      
+      let fileName = '未知文件';
+      let fileData = '';
+      
+      customAttributes.forEach(attr => {
+        if (attr.key === '文件') {
+          fileName = attr.value;
+        }
+        if (attr.key === '文件数据') {
+          fileData = attr.value;
+        }
+      });
+
+      // 显示文件信息
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      
+      // 构建参数信息
+      let paramsHtml = '';
+      const paramKeys = [
+        '材料', 
+        '颜色', 
+        '精度', 
+        '表面粗糙度', 
+        '精度等级', 
+        '公差标准', 
+        '颜色与表面',
+        '是否有螺纹',
+        '是否有装配标记',
+        '缩放比例',
+        '备注'
+      ];
+      
+      paramKeys.forEach(key => {
+        const attr = customAttributes.find(a => a.key === key);
+        if (attr && attr.value) {
+          let displayValue = attr.value;
+          
+          // 特殊处理某些字段的显示
+          if (key === '是否有螺纹' || key === '是否有装配标记') {
+            displayValue = attr.value === 'yes' ? '是' : '否';
+          } else if (key === '缩放比例') {
+            displayValue = attr.value + '%';
+          }
+          
+          paramsHtml += `<p><strong>${key}:</strong> ${displayValue}</p>`;
+        }
+      });
+      
+      modal.innerHTML = `
+        <div style="
+          background: white;
+          border-radius: 8px;
+          padding: 20px;
+          max-width: 600px;
+          width: 90%;
+          max-height: 80vh;
+          overflow-y: auto;
+        ">
+          <h3>文件预览</h3>
+          <p><strong>文件名:</strong> ${fileName}</p>
+          <p><strong>询价单号:</strong> ${order.name}</p>
+          <p><strong>客户邮箱:</strong> ${order.email}</p>
+          <p><strong>创建时间:</strong> ${new Date(order.createdAt).toLocaleString('zh-CN')}</p>
+          
+          ${paramsHtml ? `
+          <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+            <h4 style="margin-top: 0; color: #333;">订单参数信息</h4>
+            ${paramsHtml}
+          </div>
+          ` : ''}
+          
+          <div style="text-align: right; margin-top: 20px;">
+            <button onclick="this.closest('div').parentElement.remove()" style="
+              background: #007bff;
+              color: white;
+              border: none;
+              padding: 8px 16px;
+              border-radius: 4px;
+              cursor: pointer;
+            ">关闭</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+      
+    } catch (error) {
+      console.error('预览文件失败:', error);
+      alert('预览文件失败: ' + error.message);
+    }
+  }
+
+  // 显示客户操作指南
+  function showCustomerGuide(orderId, email) {
+    const order = currentOrders.find(o => o.id === orderId);
+    const customerEmail = email || order?.email || '未提供';
+    
+    const guideContent = `
+      <div style="padding: 20px;">
+        <div style="margin-bottom: 20px;">
+          <div style="margin-bottom: 8px;"><strong>1. 联系客户</strong></div>
+          <div style="margin-left: 16px; margin-bottom: 12px;">
+            请通过以下方式联系客户：<br>
+            📧 邮箱：${customerEmail}<br>
+            📱 电话或其他联系方式
+          </div>
+          
+          <div style="margin-bottom: 8px;"><strong>2. 告知客户操作步骤</strong></div>
+          <div style="margin-left: 16px; margin-bottom: 12px;">
+            • 访问询价页面查看最新状态<br>
+            • 如果已报价，点击"立即下单"按钮<br>
+            • 完成支付流程<br>
+            • 或直接联系客服确认
+          </div>
+          
+          <div style="margin-bottom: 8px;"><strong>3. 系统说明</strong></div>
+          <div style="margin-left: 16px; color: #666; font-size: 13px;">
+            客户可以通过询价页面实时查看报价状态和下单。
+          </div>
+        </div>
+        
+        <div style="background: #e3f2fd; padding: 12px; border-radius: 6px; border-left: 4px solid #1976d2;">
+          <p style="margin: 0; color: #1976d2; font-size: 14px;">
+            <strong>建议：</strong>完成报价后，主动联系客户确认并指导操作。
+          </p>
+        </div>
+      </div>
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 12px;
+        padding: 0;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        position: relative;
+      ">
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid #e9ecef;
+        ">
+          <h3 style="margin: 0; color: #333;">客户操作指南</h3>
+          <button onclick="this.closest('.guide-modal').remove()" style="
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+          ">&times;</button>
+        </div>
+        <div>${guideContent}</div>
+      </div>
+    `;
+    
+    modal.className = 'guide-modal';
+    document.body.appendChild(modal);
+    
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  // 删除报价
+  async function deleteQuote(orderId) {
+    if (!confirm('确定要删除这个询价单吗？此操作不可撤销。')) {
+      return;
+    }
+
+    try {
+      console.log('删除询价单:', orderId);
+      
+      const order = currentOrders.find(o => o.id === orderId);
+      let fileId = '';
+      
+      // 查找文件ID
+      if (order && order.lineItems && order.lineItems.length > 0) {
+        const customAttributes = order.lineItems[0].customAttributes || [];
+        customAttributes.forEach(attr => {
+          if (attr.key === '文件ID' || attr.key === 'fileId') {
+            fileId = attr.value;
+          }
+        });
+      }
+      
+      // 先清理文件（如果存在）
+      if (fileId) {
+        try {
+          console.log('清理关联文件:', fileId);
+          await fetch(`${API_BASE}/cleanup-files`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              orderId: orderId,
+              fileId: fileId
+            })
+          });
+        } catch (cleanupError) {
+          console.warn('文件清理失败，继续删除订单:', cleanupError);
+        }
+      }
+      
+      // 删除Draft Order
+      const response = await fetch(`${API_BASE}/delete-draft-order`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          draftOrderId: orderId
+        })
+      });
+
+      const data = await response.json();
+      console.log('删除响应:', data);
+
+      if (data.success) {
+        alert('询价单删除成功！');
+        loadOrders(); // 重新加载订单列表
+      } else {
+        alert('删除失败: ' + (data.message || '未知错误'));
+      }
+
+    } catch (error) {
+      console.error('删除询价单失败:', error);
+      alert('删除失败: ' + error.message);
+    }
+  }
+</script>
+</script>

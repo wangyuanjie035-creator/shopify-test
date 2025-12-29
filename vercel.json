@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/submit-quote-real.js": {
+      "maxDuration": 20
+    },
+    "api/download-file.js": {
+      "maxDuration": 15
+    },
+    "api/send-invoice-email.js": {
+      "maxDuration": 15
+    }
+  }
+}

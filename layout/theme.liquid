@@ -1,0 +1,106 @@
+<!doctype html>
+<html
+  class="no-js{% if request.design_mode %} shopify-design-mode{% endif %}"
+  lang="{{ request.locale.iso_code }}"
+>
+  <head>
+    {%- render 'stylesheets' -%}
+
+    {%- if settings.favicon != blank -%}
+      <link
+        rel="icon"
+        type="image/png"
+        href="{{ settings.favicon | image_url: width: 32, height: 32 }}"
+      >
+    {%- endif -%}
+
+    {% comment %} This a way to wait for main content to load when navigating to a new page so that the view transitions can work consistently {% endcomment %}
+    <link
+      rel="expect"
+      href="#MainContent"
+      blocking="render"
+      id="view-transition-render-blocker"
+    >
+
+    {%- render 'meta-tags' -%}
+    {%- render 'fonts' -%}
+    {%- render 'scripts' -%}
+    {%- render 'theme-styles-variables' -%}
+    {%- render 'color-schemes' -%}
+
+    {% if request.design_mode %}
+      {%- render 'theme-editor' -%}
+    {% endif %}
+
+    {{ content_for_header }}
+  </head>
+
+  <body class="page-width-{{ settings.page_width }} card-hover-effect-{{ settings.card_hover_effect }}">
+    {% render 'skip-to-content-link', href: '#MainContent', text: 'accessibility.skip_to_text' %}
+    <div id="header-group">
+      {% sections 'header-group' %}
+    </div>
+
+    <script
+      src="{{ 'critical.js' | asset_url }}"
+      type="module"
+      async
+      blocking="render"
+    ></script>
+
+    <main
+      id="MainContent"
+      class="content-for-layout"
+      role="main"
+      data-page-transition-enabled="{{ settings.page_transition_enabled }}"
+      data-product-transition="{{ settings.transition_to_main_product }}"
+      data-template="{{ template }}"
+    >
+      {{ content_for_layout }}
+    </main>
+
+    {% sections 'footer-group' %}
+
+    {% render 'search-modal' %}
+
+    {% if settings.quick_add or settings.mobile_quick_add %}
+      {% render 'quick-add-modal' %}
+    {% endif %}
+
+    {%- comment -%}
+      隐藏“草稿订单管理”导航：非白名单管理员看不到入口，避免误点。
+      如需调整白名单，请修改 ADMIN_EMAILS。
+    {%- endcomment -%}
+    <script>
+      (() => {
+        const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com'];
+        const customerEmail = ({{ customer.email | json }} || '').toLowerCase();
+        const isAdmin = ADMIN_EMAILS.includes(customerEmail);
+
+        if (!isAdmin) {
+          const hideLinks = () => {
+            const links = document.querySelectorAll('a[href*="admin-draft-orders"], a[href*="/pages/admin-draft-orders"]');
+            links.forEach(a => {
+              a.style.display = 'none';
+              if (a.parentElement && a.parentElement.tagName === 'LI') {
+                a.parentElement.style.display = 'none';
+              }
+            });
+            // 隐藏可能出现的“More”折叠入口
+            document.querySelectorAll('details.disclosure').forEach(d => {
+              const summaryText = (d.querySelector('summary')?.textContent || '').trim().toLowerCase();
+              if (summaryText === 'more' || !d.querySelector('a')) {
+                d.style.display = 'none';
+              }
+            });
+          };
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', hideLinks);
+          } else {
+            hideLinks();
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

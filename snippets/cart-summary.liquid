@@ -1,0 +1,352 @@
+{%- doc -%}
+  Renders the cart summary totals.
+{%- enddoc -%}
+
+<div class="cart__summary-totals">
+  {% # We need to keep this node in place to allow morphing to work properly # %}
+  <div class="cart__original-total-container cart-primary-typography">
+    {%- if cart.cart_level_discount_applications.size > 0 -%}
+      <span class="cart__summary-item cart__original-total">
+        <span class="cart__original-total-label">{{ 'content.cart_subtotal' | t }}</span>
+        <span class="cart__original-total-value cart-secondary-typography">
+          {{- cart.original_total_price | money -}}
+        </span>
+      </span>
+      <div class="cart__summary-discounts">
+        <ul
+          class="discounts list-unstyled"
+          role="list"
+          aria-label="{{ 'content.discounts' | t }}"
+        >
+          {%- for discount in cart.cart_level_discount_applications -%}
+            <li class="cart__summary-item cart__discount">
+              <span class="cart__discount-label">
+                {{- 'icon-discount.svg' | inline_asset_content -}}
+                {{ discount.title | escape }}
+              </span>
+              <span class="cart__discount-value cart-secondary-typography"
+                >-{{ discount.total_allocated_amount | money -}}
+              </span>
+            </li>
+          {%- endfor -%}
+        </ul>
+      </div>
+    {%- endif -%}
+  </div>
+
+  {% if settings.show_cart_note or settings.show_add_discount_code %}
+    <div class="cart-actions">
+      {% if settings.show_cart_note %}
+        {% render 'cart-note' %}
+      {% endif %}
+      {% if settings.show_cart_note and settings.show_add_discount_code %}
+        <div class="cart-actions__divider"></div>
+      {% endif %}
+      {% if settings.show_add_discount_code %}
+        {% render 'cart-discount', section_id: 'cart-drawer' %}
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {%- liquid
+    # Calculate totals excluding quote orders
+    assign quote_items_count = 0
+    assign regular_items_count = 0
+    assign regular_items_total = 0
+    
+    for item in cart.items
+      assign is_quote_order = false
+      for property in item.properties
+        if property.first == 'Order Type' and property.last == '3D Model Quote'
+          assign is_quote_order = true
+          break
+        endif
+      endfor
+      
+      if is_quote_order
+        assign quote_items_count = quote_items_count | plus: item.quantity
+      else
+        assign regular_items_count = regular_items_count | plus: item.quantity
+        assign regular_items_total = regular_items_total | plus: item.final_line_price
+      endif
+    endfor
+    
+    if settings.currency_code_enabled_cart_total
+      assign total_price = cart.total_price | money_with_currency
+      assign regular_total_price = regular_items_total | money_with_currency
+    else
+      assign total_price = cart.total_price | money
+      assign regular_total_price = regular_items_total | money
+    endif
+  -%}
+
+  <div class="cart__total-container">
+    {% if quote_items_count > 0 %}
+      <div class="cart__quote-summary">
+        <div class="cart__summary-item cart__quote-info">
+          <span class="cart__quote-label cart-primary-typography">
+            {{ 'content.quote_items' | t: count: quote_items_count | default: '报价商品' }}
+          </span>
+          <span class="cart__quote-status cart-secondary-typography">
+            {{ 'content.quote_pending' | t | default: '报价中' }}
+          </span>
+        </div>
+        {% if regular_items_count > 0 %}
+          <div class="cart__summary-item cart__regular-total">
+            <span class="cart__total-label cart-primary-typography">{{ 'content.cart_subtotal' | t }}</span>
+            <text-component
+              ref="cartTotal"
+              value="{{ regular_total_price | strip_html }}"
+              class="cart__total-value cart-secondary-typography"
+            >
+              {{ regular_total_price }}
+            </text-component>
+          </div>
+        {% else %}
+          <div class="cart__summary-item cart__quote-only">
+            <span class="cart__quote-only-text cart-primary-typography">
+              {{ 'content.quote_only_message' | t | default: '购物车中只有报价商品，总价将在报价完成后显示' }}
+            </span>
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <span
+        class="cart__summary-item cart__total"
+        role="status"
+      >
+        <span class="cart__total-label cart-primary-typography">{{ 'content.cart_estimated_total' | t }}</span>
+        <text-component
+          ref="cartTotal"
+          value="{{ total_price | strip_html }}"
+          class="cart__total-value cart-secondary-typography"
+          {% comment %} Used by payment_terms web component {% endcomment %}
+          data-cart-subtotal
+        >
+          {{ total_price }}
+        </text-component>
+      </span>
+    {% endif %}
+    {% if settings.show_installments %}
+      <span class="cart__summary-item cart__installments">
+        {% form 'cart', cart %}
+          {{ form | payment_terms }}
+        {% endform %}
+      </span>
+    {% endif %}
+    <div class="cart__summary-item tax-note cart-primary-typography">
+      {% render 'tax-info', has_discounts_enabled: settings.show_add_discount_code %}
+    </div>
+  </div>
+</div>
+
+<div class="cart__ctas">
+  <button
+    type="submit"
+    id="checkout"
+    class="cart__checkout-button button"
+    name="checkout"
+    {% if cart == empty or regular_items_count == 0 and quote_items_count > 0 %}
+      disabled
+    {% endif %}
+    form="cart-form"
+  >
+    {% if regular_items_count == 0 and quote_items_count > 0 %}
+      {{ 'content.quote_checkout_disabled' | t | default: '请等待报价完成' }}
+    {% else %}
+      {{ 'content.checkout' | t }}
+    {% endif %}
+  </button>
+
+  {% if additional_checkout_buttons and settings.show_accelerated_checkout_buttons %}
+    <div class="additional-checkout-buttons additional-checkout-buttons--vertical">
+      {{ content_for_additional_checkout_buttons }}
+    </div>
+  {% endif %}
+</div>
+
+{% stylesheet %}
+  .cart-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    border-block: 1px solid var(--color-border);
+    padding-block: var(--padding-sm);
+    margin-block-start: var(--margin-3xs);
+  }
+
+  .cart-actions__divider {
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .cart__summary-totals:not(:has(.cart-actions)) {
+    margin-block-start: var(--margin-3xs);
+    border-block-start: 1px solid var(--color-border);
+    padding-block-start: var(--margin-xl);
+  }
+
+  .cart__installments {
+    color: var(--color-foreground);
+  }
+
+  .cart__quote-summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+  }
+
+  .cart__quote-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--padding-sm);
+    background-color: #e3f2fd;
+    border-radius: var(--style-border-radius);
+    border: 1px solid #bbdefb;
+  }
+
+  .cart__quote-label {
+    font-weight: 600;
+    color: #1976d2;
+  }
+
+  .cart__quote-status {
+    color: #1976d2;
+    font-style: italic;
+  }
+
+  .cart__regular-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--padding-sm);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .cart__quote-only {
+    text-align: center;
+    padding: var(--padding-sm);
+    background-color: #fff3e0;
+    border-radius: var(--style-border-radius);
+    border: 1px solid #ffcc02;
+  }
+
+  .cart__quote-only-text {
+    color: #f57c00;
+    font-style: italic;
+    font-size: var(--cart-font-size--sm);
+  }
+
+  /* 购物车摘要整体样式优化 */
+  .cart__summary-totals {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* 报价信息样式优化 */
+  .cart__quote-info {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border: 2px solid #1976d2;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+  }
+
+  .cart__quote-label {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1976d2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cart__quote-label::before {
+    content: "📋";
+    font-size: 18px;
+  }
+
+  .cart__quote-status {
+    background: #1976d2;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(25, 118, 210, 0.3);
+  }
+
+  /* 报价专用消息样式 */
+  .cart__quote-only {
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+    border: 2px solid #ff9800;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
+  }
+
+  .cart__quote-only-text {
+    color: #e65100;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .cart__quote-only-text::before {
+    content: "⏳ ";
+    font-size: 18px;
+  }
+
+  /* 结账按钮样式优化 */
+  .cart__checkout-button {
+    background: linear-gradient(135deg, #1976d2, #1565c0);
+    border: none;
+    border-radius: 12px;
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .cart__checkout-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1565c0, #0d47a1);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+  }
+
+  .cart__checkout-button:disabled {
+    background: #e0e0e0;
+    color: #9e9e9e;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* 常规商品总计样式 */
+  .cart__regular-total {
+    background: #fff;
+    border: 2px solid #4caf50;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 12px;
+  }
+
+  .cart__regular-total .cart__total-label {
+    color: #2e7d32;
+    font-weight: 600;
+  }
+
+  .cart__regular-total .cart__total-value {
+    color: #1b5e20;
+    font-weight: 700;
+    font-size: 18px;
+  }
+{% endstylesheet %}

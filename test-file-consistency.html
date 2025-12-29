@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>文件大小一致性测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { border: 1px solid #ddd; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .success { border-color: #4CAF50; background-color: #f1f8e9; }
+        .error { border-color: #f44336; background-color: #ffebee; }
+        .info { border-color: #2196F3; background-color: #e3f2fd; }
+        button { padding: 10px 20px; margin: 10px 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .primary { background-color: #2196F3; color: white; }
+        .success { background-color: #4CAF50; color: white; }
+        .warning { background-color: #ff9800; color: white; }
+        #result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>文件大小一致性测试</h1>
+    
+    <div class="test-section info">
+        <h3>📋 测试说明</h3>
+        <p>此测试验证文件上传和下载过程中的大小一致性：</p>
+        <ol>
+            <li>上传文件到 Shopify Files</li>
+            <li>下载文件并验证大小</li>
+            <li>对比原始大小和下载大小</li>
+            <li>确保文件完整性</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>📁 文件选择</h3>
+        <input type="file" id="fileInput" accept=".stp,.step,.stl,.obj">
+        <button class="primary" onclick="startTest()">开始测试</button>
+        <button class="warning" onclick="clearResults()">清除结果</button>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        let originalFile = null;
+
+        async function startTest() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('请选择一个文件进行测试', 'error');
+                return;
+            }
+
+            originalFile = file;
+            showResult(`📁 开始测试文件: ${file.name}<br>📊 原始大小: ${file.size} 字节 (${(file.size / 1024).toFixed(2)} KB)`, 'info');
+
+            try {
+                // 步骤1: 上传文件到 Shopify Files
+                showResult('🔄 步骤1: 上传文件到 Shopify Files...', 'info');
+                
+                const fileData = await readFileAsBase64(file);
+                const uploadResponse = await fetch('https://shopify-13s4.vercel.app/api/store-file-real', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fileData: fileData,
+                        fileName: file.name,
+                        fileType: file.type || 'application/octet-stream'
+                    })
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error(`上传失败: ${uploadResponse.status}`);
+                }
+
+                const uploadResult = await uploadResponse.json();
+                
+                if (!uploadResult.success) {
+                    throw new Error(`上传失败: ${uploadResult.message}`);
+                }
+
+                showResult(`✅ 上传成功!<br>
+                    📋 文件ID: ${uploadResult.fileId}<br>
+                    🆔 Shopify文件ID: ${uploadResult.shopifyFileId}<br>
+                    📊 上传大小: ${uploadResult.uploadedFileSize} 字节<br>
+                    📊 Shopify记录大小: ${uploadResult.originalFileSize} 字节<br>
+                    ✅ 大小匹配: ${uploadResult.sizeMatch ? '是' : '否'}`, 'success');
+
+                // 步骤2: 下载文件
+                showResult('🔄 步骤2: 从 Shopify Files 下载文件...', 'info');
+
+                const downloadResponse = await fetch(`https://shopify-13s4.vercel.app/api/download-file-real?id=${uploadResult.shopifyFileId}`);
+                
+                if (!downloadResponse.ok) {
+                    throw new Error(`下载失败: ${downloadResponse.status}`);
+                }
+
+                const downloadedBlob = await downloadResponse.blob();
+                const downloadedSize = downloadedBlob.size;
+                
+                // 获取响应头中的大小信息
+                const originalSize = downloadResponse.headers.get('X-Original-File-Size');
+                const downloadedSizeHeader = downloadResponse.headers.get('X-Downloaded-File-Size');
+                const sizeMatch = downloadResponse.headers.get('X-Size-Match');
+
+                // 步骤3: 验证大小一致性
+                const sizeConsistent = originalFile.size === downloadedSize;
+                
+                showResult(`✅ 下载完成!<br>
+                    📁 文件名: ${file.name}<br>
+                    📊 原始大小: ${originalFile.size} 字节 (${(originalFile.size / 1024).toFixed(2)} KB)<br>
+                    📊 下载大小: ${downloadedSize} 字节 (${(downloadedSize / 1024).toFixed(2)} KB)<br>
+                    📊 Shopify原始大小: ${originalSize || '未知'} 字节<br>
+                    📊 服务器下载大小: ${downloadedSizeHeader || '未知'} 字节<br>
+                    ✅ 大小一致性: ${sizeConsistent ? '✅ 一致' : '❌ 不一致'}<br>
+                    ✅ 服务器验证: ${sizeMatch === 'true' ? '✅ 通过' : '❌ 失败'}`, 
+                    sizeConsistent ? 'success' : 'error');
+
+                // 步骤4: 提供下载链接
+                const downloadLink = document.createElement('a');
+                downloadLink.href = URL.createObjectURL(downloadedBlob);
+                downloadLink.download = `downloaded_${file.name}`;
+                downloadLink.textContent = '📥 下载测试文件';
+                downloadLink.className = 'primary';
+                downloadLink.style.display = 'inline-block';
+                downloadLink.style.marginTop = '10px';
+                
+                document.getElementById('result').appendChild(downloadLink);
+
+            } catch (error) {
+                showResult(`❌ 测试失败: ${error.message}`, 'error');
+                console.error('测试错误:', error);
+            }
+        }
+
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = message;
+            resultDiv.className = `test-section ${type}`;
+        }
+
+        function clearResults() {
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('result').className = '';
+            document.getElementById('fileInput').value = '';
+            originalFile = null;
+        }
+    </script>
+</body>
+</html>

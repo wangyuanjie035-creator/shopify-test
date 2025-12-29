@@ -1,0 +1,86 @@
+{% comment %}
+  Shopify App Proxy for Quotes API
+  访问路径: /apps/quotes
+{% endcomment %}
+
+{% comment %} 设置 CORS 头部 {% endcomment %}
+{% assign cors_headers = 'Access-Control-Allow-Origin: *' | split: ', ' %}
+{% assign cors_headers = cors_headers | concat: 'Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS' | split: ', ' %}
+{% assign cors_headers = cors_headers | concat: 'Access-Control-Allow-Headers: Content-Type, Authorization' | split: ', ' %}
+
+{% comment %} 处理 OPTIONS 预检请求 {% endcomment %}
+{% if request.method == 'OPTIONS' %}
+  {% assign response_headers = cors_headers %}
+  {% assign response_body = '' %}
+  {% assign response_status = 200 %}
+{% else %}
+
+  {% comment %} 处理 GET 请求 - 获取所有 quotes {% endcomment %}
+  {% if request.method == 'GET' %}
+    {% comment %} 从 Shopify metafields 获取 quotes {% endcomment %}
+    {% assign quotes_data = shop.metafields.custom.quotes_data %}
+    {% if quotes_data == blank %}
+      {% assign quotes_data = '[]' %}
+    {% endif %}
+    
+    {% assign response_body = '{"records":' | append: quotes_data | append: '}' %}
+    {% assign response_headers = cors_headers | concat: 'Content-Type: application/json' | split: ', ' %}
+    {% assign response_status = 200 %}
+
+  {% comment %} 处理 POST 请求 - 添加新 quote {% endcomment %}
+  {% elsif request.method == 'POST' %}
+    {% comment %} 解析请求体 {% endcomment %}
+    {% assign request_body = request.body %}
+    {% assign new_quote = request_body | parse_json %}
+    
+    {% comment %} 生成新 ID {% endcomment %}
+    {% assign new_id = 'now' | date: '%s' %}
+    {% assign new_quote_with_id = new_quote | json | prepend: '{"id":"' | append: new_id | append: '",' | append: new_quote | json | slice: 1 %}
+    
+    {% comment %} 获取现有 quotes {% endcomment %}
+    {% assign existing_quotes = shop.metafields.custom.quotes_data %}
+    {% if existing_quotes == blank %}
+      {% assign existing_quotes = '[]' %}
+    {% endif %}
+    
+    {% comment %} 添加新 quote {% endcomment %}
+    {% assign quotes_array = existing_quotes | parse_json %}
+    {% assign quotes_array = quotes_array | concat: new_quote_with_id | parse_json %}
+    {% assign updated_quotes = quotes_array | json %}
+    
+    {% comment %} 保存到 metafields (这里需要 Shopify Admin API) {% endcomment %}
+    {% comment %} 暂时返回新 quote {% endcomment %}
+    {% assign response_body = new_quote_with_id %}
+    {% assign response_headers = cors_headers | concat: 'Content-Type: application/json' | split: ', ' %}
+    {% assign response_status = 201 %}
+
+  {% comment %} 处理 PUT 请求 - 更新 quote {% endcomment %}
+  {% elsif request.method == 'PUT' %}
+    {% assign quote_id = request.path | split: '/' | last %}
+    {% assign request_body = request.body %}
+    {% assign updated_quote = request_body | parse_json %}
+    {% assign updated_quote_with_id = updated_quote | json | prepend: '{"id":"' | append: quote_id | append: '",' | append: updated_quote | json | slice: 1 %}
+    
+    {% assign response_body = updated_quote_with_id %}
+    {% assign response_headers = cors_headers | concat: 'Content-Type: application/json' | split: ', ' %}
+    {% assign response_status = 200 %}
+
+  {% comment %} 处理 DELETE 请求 - 删除 quote {% endcomment %}
+  {% elsif request.method == 'DELETE' %}
+    {% assign quote_id = request.path | split: '/' | last %}
+    
+    {% assign response_body = 'Quote deleted' %}
+    {% assign response_headers = cors_headers | concat: 'Content-Type: text/plain' | split: ', ' %}
+    {% assign response_status = 200 %}
+
+  {% comment %} 其他请求方法 {% endcomment %}
+  {% else %}
+    {% assign response_body = 'Method not allowed' %}
+    {% assign response_headers = cors_headers | concat: 'Content-Type: text/plain' | split: ', ' %}
+    {% assign response_status = 405 %}
+  {% endif %}
+
+{% endif %}
+
+{% comment %} 输出响应 {% endcomment %}
+{{ response_body }}

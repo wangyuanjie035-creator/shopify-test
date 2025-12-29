@@ -1,0 +1,135 @@
+{%- doc -%}
+  Renders price for quote orders (3D model upload orders).
+  Shows "报价中" (Quote Pending) instead of actual price for quote orders.
+  
+  @param {object} item - The cart item
+{%- enddoc -%}
+
+{%- liquid
+  assign is_quote_order = false
+  assign quote_status = 'Pending'
+  
+  # Check if this is a quote order by looking at properties
+  for property in item.properties
+    if property.first == 'Order Type' and property.last == '3D Model Quote'
+      assign is_quote_order = true
+    endif
+    if property.first == 'Quote Status'
+      assign quote_status = property.last
+    endif
+  endfor
+  
+  assign quoted_price = ''
+  if is_quote_order
+    # Show quote status instead of price
+    if quote_status == 'Pending'
+      assign display_text = '报价中'
+    elsif quote_status == 'Quoted'
+      assign display_text = '已报价'
+      # Try to show quoted price if provided
+      for property in item.properties
+        if property.first == 'Quoted Price' and property.last != blank
+          assign quoted_price = property.last
+        endif
+      endfor
+    elsif quote_status == 'Processing'
+      assign display_text = '处理中'
+    else
+      assign display_text = '报价中'
+    endif
+    
+    # Add styling for quote status
+    assign quote_class = 'quote-status quote-status--' | append: quote_status | downcase
+  else
+    # Show normal price only if it's not zero
+    if item.final_line_price > 0
+      if settings.currency_code_enabled_cart_items
+        assign display_text = item.final_line_price | money_with_currency
+      else
+        assign display_text = item.final_line_price | money
+      endif
+      assign quote_class = 'normal-price'
+    else
+      # Hide zero price
+      assign display_text = ''
+      assign quote_class = 'hidden-price'
+    endif
+  endif
+-%}
+
+<div class="cart-items__price {{ quote_class }}">
+  {% if is_quote_order %}
+    <span class="quote-status-text">{{ display_text }}</span>
+    {% if quote_status == 'Quoted' and quoted_price != '' %}
+      <div class="quote-status-note">报价金额：¥{{ quoted_price }}</div>
+    {% endif %}
+    {% if quote_status == 'Pending' %}
+      <div class="quote-status-note">我们将在24小时内为您提供详细报价</div>
+    {% endif %}
+  {% else %}
+    <text-component value="{{ display_text | strip_html }}">{{ display_text }}</text-component>
+    {%- if item.unit_price_measurement -%}
+      {%- liquid
+        if settings.currency_code_enabled_cart_items
+          assign unit_price = item.unit_price | money_with_currency
+        else
+          assign unit_price = item.unit_price | money
+        endif
+      -%}
+      <div class="cart-items__price-unit cart-secondary-typography">
+        {% render 'unit-price', price: unit_price, measurement: item.unit_price_measurement %}
+      </div>
+    {%- endif -%}
+  {% endif %}
+</div>
+
+{% stylesheet %}
+  .quote-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+  }
+  
+  .quote-status-text {
+    font-size: var(--cart-font-size--md);
+    font-weight: 600;
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #1976d2, #1565c0);
+    border-radius: 1rem;
+    border: none;
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+    text-align: center;
+    min-width: 80px;
+  }
+  
+  .quote-status--quoted .quote-status-text {
+    color: #388e3c;
+    background-color: #e8f5e8;
+    border-color: #c8e6c9;
+  }
+  
+  .quote-status--processing .quote-status-text {
+    color: #f57c00;
+    background-color: #fff3e0;
+    border-color: #ffcc02;
+  }
+  
+  .quote-status-note {
+    font-size: var(--cart-font-size--xs);
+    color: #666;
+    text-align: right;
+    font-style: italic;
+  }
+  
+  .normal-price {
+    text-align: end;
+    display: block;
+    font-size: var(--cart-font-size--md);
+  }
+  
+  .hidden-price {
+    display: none;
+  }
+{% endstylesheet %}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>文件上传测试</title>
+</head>
+<body>
+    <h1>文件上传测试</h1>
+    <input type="file" id="fileInput" accept=".stp,.step">
+    <button onclick="testUpload()">测试上传</button>
+    <div id="result"></div>
+
+    <script>
+        async function testUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请选择文件');
+                return;
+            }
+            
+            console.log('选择的文件:', file.name, file.size, file.type);
+            
+            try {
+                // 测试文件读取
+                const fileData = await readFileAsBase64(file);
+                console.log('文件数据长度:', fileData.length);
+                
+                // 测试API调用
+                const response = await fetch('https://shopify-13s4.vercel.app/api/submit-quote-real', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        customerName: '测试客户',
+                        customerEmail: 'test@example.com',
+                        lineItems: [{
+                            title: file.name,
+                            quantity: 1,
+                            originalUnitPrice: '99.00',
+                            customAttributes: [
+                                { key: '文件', value: file.name }
+                            ]
+                        }],
+                        fileUrl: fileData
+                    })
+                });
+                
+                console.log('API响应状态:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ API调用成功:', result);
+                    document.getElementById('result').innerHTML = `
+                        <h3>✅ 成功!</h3>
+                        <p>订单ID: ${result.draftOrderId}</p>
+                        <p>订单名称: ${result.draftOrderName}</p>
+                        <p>文件ID: ${result.fileId}</p>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ API调用失败:', response.status, errorText);
+                    document.getElementById('result').innerHTML = `
+                        <h3>❌ 失败!</h3>
+                        <p>状态: ${response.status}</p>
+                        <p>错误: ${errorText}</p>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('❌ 测试失败:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>❌ 异常!</h3>
+                    <p>错误: ${error.message}</p>
+                `;
+            }
+        }
+        
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+    </script>
+</body>
+</html>

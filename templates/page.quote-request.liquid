@@ -1,0 +1,1710 @@
+<!--
+  ═══════════════════════════════════════════════════════════════
+  询价请求页面 - 完整版（类似图2样式）
+  ═══════════════════════════════════════════════════════════════
+  
+  功能：
+  1. 3D 模型上传和预览
+  2. 完整的配置选项（材质、颜色、精度等）
+  3. 提交询价（调用新的 submit-quote API）
+  4. 跳转到"我的询价"页面查看状态
+-->
+
+<div class="quote-request-container">
+  <!-- 主要内容区域 -->
+  <div class="main-content">
+    
+    <!-- 左侧：3D 模型上传和预览 -->
+    <div class="upload-section">
+      <h2>📁 上传 3D 模型</h2>
+      
+      <!-- 3D 预览区域 -->
+      <div class="model-viewer-container">
+        <div id="model-viewer" class="model-viewer">
+          <div class="viewer-placeholder">
+            <div class="viewer-icon">🎯</div>
+            <p>上传文件后将显示 3D 模型预览</p>
+          </div>
+        </div>
+        
+        <!-- 预览工具按钮 -->
+        <div class="viewer-tools">
+          <button class="tool-btn" title="查看视图">
+            <span class="icon">👁️</span>
+            <span class="text">查看视图</span>
+          </button>
+          <button class="tool-btn" title="测量">
+            <span class="icon">📏</span>
+            <span class="text">测量</span>
+          </button>
+          <button class="tool-btn" title="标注">
+            <span class="icon">✏️</span>
+            <span class="text">标注</span>
+          </button>
+          <button class="tool-btn" title="导出">
+            <span class="icon">📤</span>
+            <span class="text">导出</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- 上传区域 -->
+      <div class="upload-area" id="dropzone">
+        <div class="upload-info">
+          <div class="upload-icon">📁</div>
+          <h3>上传您的3D模型</h3>
+          <p class="supported-formats">支持格式: STP / STEP 文件, 以及对应的2D图纸 (DWG / DXF / PDF)</p>
+          <p class="file-limit">单次上传文件≤20个, 单个文件大小<100M</p>
+        </div>
+        <input type="file" id="file-input" accept=".step,.stp,.stl,.obj,.3ds,.fbx,.dae,.gltf,.glb,.dwg,.dxf,.pdf" style="display: none;" multiple>
+        <button type="button" class="upload-btn" onclick="document.getElementById('file-input').click()">
+          选择文件
+        </button>
+      </div>
+      
+      <!-- 文件预览 -->
+      <div id="file-preview" class="file-preview" style="display: none;">
+        <h3>已选择的文件</h3>
+        <div id="file-list"></div>
+      </div>
+    </div>
+    
+    <!-- 右侧：配置选项 -->
+    <div class="config-section">
+      <h2>⚙️ 配置选项</h2>
+      
+      <form id="quote-form" class="config-form">
+        
+        <!-- 单位选择 -->
+        <div class="form-group">
+          <label>单位</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="unit" value="mm" checked>
+              <span class="radio-text">毫米 (mm)</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="unit" value="in">
+              <span class="radio-text">英寸 (in)</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- 材质选择 -->
+        <div class="form-group">
+          <label for="material">材质 *</label>
+          <select id="material" name="material" required>
+            <option value="">请选择材质</option>
+            <option value="PLA">PLA</option>
+            <option value="ABS" selected>ABS</option>
+            <option value="PETG">PETG</option>
+            <option value="尼龙">尼龙</option>
+            <option value="树脂">树脂</option>
+            <option value="金属">金属</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        
+        <!-- 颜色和表面 -->
+        <div class="form-group">
+          <label for="color">颜色和表面</label>
+          <select id="color" name="color">
+            <option value="自然色" selected>自然色</option>
+            <option value="白色">白色</option>
+            <option value="黑色">黑色</option>
+            <option value="透明">透明</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        
+        <!-- 精度等级 -->
+        <div class="form-group">
+          <label for="precision">精度等级</label>
+          <select id="precision" name="precision">
+            <option value="标准 (±0.1mm)" selected>标准 (±0.1mm)</option>
+            <option value="高精度 (±0.05mm)">高精度 (±0.05mm)</option>
+            <option value="超高精度 (±0.02mm)">超高精度 (±0.02mm)</option>
+          </select>
+        </div>
+        
+        <!-- 公差标准 -->
+        <div class="form-group">
+          <label for="tolerance">公差标准</label>
+          <select id="tolerance" name="tolerance">
+            <option value="GB/T 1804-2000 m级" selected>GB/T 1804-2000 m级</option>
+            <option value="GB/T 1804-2000 f级">GB/T 1804-2000 f级</option>
+            <option value="GB/T 1804-2000 c级">GB/T 1804-2000 c级</option>
+          </select>
+        </div>
+        
+        <!-- 最小粗糙度 -->
+        <div class="form-group">
+          <label for="roughness">最小粗糙度</label>
+          <select id="roughness" name="roughness">
+            <option value="Ra3.2" selected>Ra3.2</option>
+            <option value="Ra1.6">Ra1.6</option>
+            <option value="Ra0.8">Ra0.8</option>
+            <option value="Ra0.4">Ra0.4</option>
+          </select>
+        </div>
+        
+        <!-- 螺纹 -->
+        <div class="form-group">
+          <label>有螺纹？</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="hasThread" value="yes">
+              <span class="radio-text">是</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="hasThread" value="no" checked>
+              <span class="radio-text">否</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- 装配标记 -->
+        <div class="form-group">
+          <label>有装配标记？</label>
+          <div class="radio-group">
+            <label class="radio-item">
+              <input type="radio" name="hasAssembly" value="yes">
+              <span class="radio-text">是</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="hasAssembly" value="no" checked>
+              <span class="radio-text">否</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- 缩放 -->
+        <div class="form-group">
+          <label for="scale">缩放: <span id="scale-value">100%</span></label>
+          <input type="range" id="scale" name="scale" min="10" max="500" value="100" class="slider">
+        </div>
+        
+        <!-- 数量 -->
+        <div class="form-group">
+          <label for="quantity">数量 *</label>
+          <div class="quantity-input">
+            <button type="button" class="qty-btn" onclick="changeQuantity(-1)">-</button>
+            <input type="number" id="quantity" name="quantity" min="1" value="1" required>
+            <button type="button" class="qty-btn" onclick="changeQuantity(1)">+</button>
+          </div>
+        </div>
+        
+        <!-- 客户信息 -->
+        <div class="form-group">
+          <label for="customer-name">您的姓名</label>
+          <input type="text" id="customer-name" name="customer-name" placeholder="请输入您的姓名">
+        </div>
+        
+        <div class="form-group">
+          <label for="customer-email">联系邮箱 *</label>
+          <input type="email" id="customer-email" name="customer-email" placeholder="用于接收报价通知" required>
+          <span class="hint">我们将通过邮箱通知您报价结果</span>
+        </div>
+        
+        <!-- 备注 -->
+        <div class="form-group">
+          <label for="note">备注</label>
+          <textarea id="note" name="note" rows="4" placeholder="请输入特殊要求或备注信息..." maxlength="200"></textarea>
+          <div class="char-count">
+            <span id="char-count">0</span>/200
+          </div>
+        </div>
+        
+      </form>
+    </div>
+  </div>
+  
+  <!-- 底部区域 -->
+  <div class="bottom-section">
+    
+    <!-- 重要提醒 -->
+    <div class="warning-box">
+      <div class="warning-icon">⚠️</div>
+      <div class="warning-text">
+        重要提醒: 如果您的3D模型包含螺纹或装配标记, 请确保为每个3D文件上传对应的2D图纸文件 (DWG/DXF/PDF), 以便我们提供准确的加工报价。
+      </div>
+    </div>
+    
+    <!-- 提交按钮 -->
+    <div class="submit-section">
+      <button type="button" id="submit-btn" class="submit-btn" onclick="submitQuote()" disabled>
+        <span id="btn-text">立即询价</span>
+        <span id="btn-loading" style="display: none;">
+          <span class="spinner"></span> 提交中...
+        </span>
+      </button>
+      
+      <!-- 交付和质量信息 -->
+      <div class="info-cards">
+        <div class="info-card">
+          <span class="info-icon">⏰</span>
+          <span class="info-text">预计交付: 3-5个工作日</span>
+        </div>
+        <div class="info-card">
+          <span class="info-icon">✅</span>
+          <span class="info-text">质量保证: 100%合格</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 成功消息 -->
+  <div id="success-message" class="success-message" style="display: none;">
+    <div class="success-icon">
+      <div class="checkmark">
+        <div class="checkmark-stem"></div>
+        <div class="checkmark-kick"></div>
+      </div>
+    </div>
+    <h3>询价提交成功！</h3>
+    <p id="success-text"></p>
+    <div class="success-actions">
+      <button class="btn-primary" onclick="viewQuote()">查看询价单</button>
+      <button class="btn-secondary" onclick="closeSuccessMessage()">继续询价</button>
+    </div>
+  </div>
+  
+  <!-- 错误消息 -->
+  <div id="error-message" class="error-message" style="display: none;">
+    <div class="error-icon">❌</div>
+    <h3>提交失败</h3>
+    <p id="error-text"></p>
+    <button class="btn-secondary" onclick="hideError()">关闭</button>
+  </div>
+</div>
+
+<style>
+  .quote-request-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    min-height: 100vh;
+  }
+  
+  .main-content {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 30px;
+    margin-bottom: 30px;
+  }
+  
+  /* 左侧上传区域 */
+  .upload-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .upload-section h2 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    color: #333;
+  }
+  
+  /* 3D 预览区域 */
+  .model-viewer-container {
+    position: relative;
+    margin-bottom: 25px;
+  }
+  
+  .model-viewer {
+    width: 100%;
+    height: 400px;
+    background: #f5f5f5;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  
+  .viewer-placeholder {
+    text-align: center;
+    color: #666;
+  }
+  
+  .viewer-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+  }
+  
+  .viewer-tools {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .tool-btn {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    transition: all 0.3s;
+  }
+  
+  .tool-btn:hover {
+    background: #f0f0f0;
+  }
+  
+  .tool-btn .icon {
+    font-size: 14px;
+  }
+  
+  /* 上传区域 */
+  .upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #fafafa;
+    transition: all 0.3s;
+  }
+  
+  .upload-area:hover {
+    border-color: #667eea;
+    background: #f0f0ff;
+  }
+  
+  .upload-area.dragover {
+    border-color: #667eea;
+    background: #e6e6ff;
+  }
+  
+  .upload-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+  }
+  
+  .upload-area h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: #333;
+  }
+  
+  .supported-formats {
+    margin: 5px 0;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .file-limit {
+    margin: 5px 0 20px 0;
+    color: #999;
+    font-size: 12px;
+  }
+  
+  .upload-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+  
+  /* 文件预览 */
+  .file-preview {
+    margin-top: 20px;
+  }
+  
+  .file-preview h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #333;
+  }
+  
+  #file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .file-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+  }
+  
+  .file-icon {
+    font-size: 24px;
+    margin-right: 12px;
+  }
+  
+  .file-info {
+    flex: 1;
+  }
+  
+  .file-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  
+  .file-size {
+    color: #666;
+    font-size: 12px;
+  }
+  
+  .remove-file {
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  /* 右侧配置区域 */
+  .config-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    height: fit-content;
+  }
+  
+  .config-section h2 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    color: #333;
+  }
+  
+  .config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .form-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: #667eea;
+  }
+  
+  /* 单选按钮组 */
+  .radio-group {
+    display: flex;
+    gap: 15px;
+  }
+  
+  .radio-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  
+  .radio-item input[type="radio"] {
+    margin: 0;
+  }
+  
+  .radio-text {
+    font-weight: normal;
+  }
+  
+  /* 数量输入 */
+  .quantity-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .qty-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .qty-btn:hover {
+    background: #f0f0f0;
+  }
+  
+  .quantity-input input {
+    width: 80px;
+    text-align: center;
+  }
+  
+  /* 滑块 */
+  .slider {
+    width: 100%;
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #667eea;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #667eea;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+  
+  /* 字符计数 */
+  .char-count {
+    text-align: right;
+    font-size: 12px;
+    color: #666;
+  }
+  
+  .hint {
+    font-size: 12px;
+    color: #666;
+  }
+  
+  /* 底部区域 */
+  .bottom-section {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  /* 警告框 */
+  .warning-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .warning-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  
+  .warning-text {
+    color: #856404;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  /* 提交区域 */
+  .submit-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .submit-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 15px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 200px;
+  }
+  
+  .submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  }
+  
+  .submit-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  /* 信息卡片 */
+  .info-cards {
+    display: flex;
+    gap: 30px;
+  }
+  
+  .info-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #28a745;
+    font-size: 14px;
+  }
+  
+  .info-icon {
+    font-size: 16px;
+  }
+  
+  /* 加载动画 */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid white;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* 成功/错误消息 */
+  .success-message,
+  .error-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    padding: 48px 40px;
+    border-radius: 20px;
+    box-shadow: 
+      0 20px 60px rgba(0,0,0,0.15),
+      0 0 0 1px rgba(255,255,255,0.05);
+    text-align: center;
+    z-index: 1000;
+    max-width: 480px;
+    width: 90%;
+    backdrop-filter: blur(10px);
+    animation: successModalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  @keyframes successModalIn {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+  
+  .success-message {
+    border: 2px solid #e8f5e8;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f9f0 100%);
+  }
+  
+  .success-icon {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 24px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .checkmark {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: checkmarkPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+  @keyframes checkmarkPop {
+    0% {
+      transform: scale(0);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  
+  .checkmark-stem {
+    position: absolute;
+    width: 3px;
+    height: 16px;
+    background: white;
+    border-radius: 2px;
+    transform: rotate(45deg);
+    left: 50%;
+    top: 50%;
+    margin-left: -1px;
+    margin-top: -8px;
+  }
+  
+  .checkmark-kick {
+    position: absolute;
+    width: 3px;
+    height: 8px;
+    background: white;
+    border-radius: 2px;
+    transform: rotate(-45deg);
+    left: 50%;
+    top: 50%;
+    margin-left: -6px;
+    margin-top: -2px;
+  }
+  
+  .error-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+  }
+  
+  .success-message h3,
+  .error-message h3 {
+    margin: 0 0 16px 0;
+    color: #1f2937;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+  
+  .success-message p,
+  .error-message p {
+    margin: 0 0 32px 0;
+    color: #6b7280;
+    line-height: 1.6;
+    font-size: 16px;
+  }
+  
+  .success-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    padding: 14px 28px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    min-width: 120px;
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  }
+  
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    transform: translateY(-2px);
+  }
+  
+  .btn-secondary {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    color: #374151;
+    border: 1px solid #d1d5db;
+  }
+  
+  .btn-secondary:hover {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* 响应式设计 */
+  @media (max-width: 1024px) {
+    .main-content {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    
+    .config-section {
+      order: -1;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .quote-request-container {
+      padding: 15px;
+    }
+    
+    .upload-section,
+    .config-section,
+    .bottom-section {
+      padding: 20px;
+    }
+    
+    .model-viewer {
+      height: 300px;
+    }
+    
+    .viewer-tools {
+      flex-direction: row;
+      top: auto;
+      bottom: 10px;
+      right: 10px;
+    }
+    
+    .tool-btn .text {
+      display: none;
+    }
+    
+    .info-cards {
+      flex-direction: column;
+      gap: 15px;
+    }
+  }
+</style>
+
+<!-- 引入Three.js用于3D预览 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+  const API_BASE = 'https://shopify-13s4.vercel.app/api';  // ← 请修改为你的实际 Vercel 域名
+  
+  let selectedFiles = [];
+  let quoteResult = null;
+  
+  // 3D查看器相关变量
+  let scene = null;
+  let camera = null;
+  let renderer = null;
+  let controls = null;
+  let currentModel = null;
+  
+  // 初始化
+  document.addEventListener('DOMContentLoaded', function() {
+    init3DViewer();
+    initFileUpload();
+    initForm();
+    updateSubmitButton();
+  });
+  
+  /**
+   * 初始化3D查看器
+   */
+  function init3DViewer() {
+    const viewer = document.getElementById('model-viewer');
+    if (!viewer) return;
+    
+    // 创建场景
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f5f5);
+    
+    // 创建相机
+    camera = new THREE.PerspectiveCamera(75, viewer.clientWidth / viewer.clientHeight, 0.1, 1000);
+    camera.position.set(0, 0, 50);
+    
+    // 创建渲染器
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    // 清空占位符并添加渲染器
+    viewer.innerHTML = '';
+    viewer.appendChild(renderer.domElement);
+    
+    // 添加光源
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(50, 50, 50);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+    
+    // 添加轨道控制器
+    if (typeof THREE.OrbitControls !== 'undefined') {
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+    }
+    
+    // 渲染循环
+    animate();
+    
+    // 窗口大小调整
+    window.addEventListener('resize', onWindowResize);
+  }
+  
+  /**
+   * 渲染循环
+   */
+  function animate() {
+    requestAnimationFrame(animate);
+    
+    if (controls) {
+      controls.update();
+    }
+    
+    if (renderer && scene && camera) {
+      renderer.render(scene, camera);
+    }
+  }
+  
+  /**
+   * 窗口大小调整
+   */
+  function onWindowResize() {
+    const viewer = document.getElementById('model-viewer');
+    if (!viewer || !camera || !renderer) return;
+    
+    camera.aspect = viewer.clientWidth / viewer.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+  }
+  
+  /**
+   * 加载3D模型
+   */
+  async function load3DModel(file) {
+    if (!scene || !renderer) return;
+    
+    // 清除当前模型
+    if (currentModel) {
+      scene.remove(currentModel);
+      currentModel = null;
+    }
+    
+    const fileName = file.name.toLowerCase();
+    
+    try {
+      if (fileName.endsWith('.stl')) {
+        await loadSTLModel(file);
+      } else if (fileName.endsWith('.obj')) {
+        await loadOBJModel(file);
+      } else if (fileName.endsWith('.step') || fileName.endsWith('.stp')) {
+        // 对于STEP文件，显示占位符信息
+        showStepFileInfo(file);
+      } else {
+        showUnsupportedFileInfo(file);
+      }
+    } catch (error) {
+      console.error('加载3D模型失败:', error);
+      showErrorInfo('模型加载失败: ' + error.message);
+    }
+  }
+  
+  /**
+   * 加载STL模型
+   */
+  function loadSTLModel(file) {
+    return new Promise((resolve, reject) => {
+      const loader = new THREE.STLLoader();
+      const url = URL.createObjectURL(file);
+      
+      loader.load(
+        url,
+        function (geometry) {
+          // 计算几何体中心
+          geometry.computeBoundingBox();
+          const center = geometry.boundingBox.getCenter(new THREE.Vector3());
+          geometry.translate(-center.x, -center.y, -center.z);
+          
+          // 创建材质
+          const material = new THREE.MeshPhongMaterial({
+            color: 0x888888,
+            shininess: 100,
+            side: THREE.DoubleSide
+          });
+          
+          // 创建网格
+          currentModel = new THREE.Mesh(geometry, material);
+          currentModel.castShadow = true;
+          currentModel.receiveShadow = true;
+          
+          scene.add(currentModel);
+          
+          // 调整相机位置
+          const box = new THREE.Box3().setFromObject(currentModel);
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const fov = camera.fov * (Math.PI / 180);
+          let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+          cameraZ *= 1.5; // 添加一些边距
+          
+          camera.position.set(cameraZ, cameraZ, cameraZ);
+          camera.lookAt(0, 0, 0);
+          
+          if (controls) {
+            controls.target.set(0, 0, 0);
+            controls.update();
+          }
+          
+          URL.revokeObjectURL(url);
+          resolve();
+        },
+        function (progress) {
+          console.log('STL加载进度:', (progress.loaded / progress.total * 100) + '%');
+        },
+        function (error) {
+          URL.revokeObjectURL(url);
+          reject(error);
+        }
+      );
+    });
+  }
+  
+  /**
+   * 加载OBJ模型
+   */
+  function loadOBJModel(file) {
+    return new Promise((resolve, reject) => {
+      const loader = new THREE.OBJLoader();
+      const url = URL.createObjectURL(file);
+      
+      loader.load(
+        url,
+        function (object) {
+          // 计算对象中心
+          const box = new THREE.Box3().setFromObject(object);
+          const center = box.getCenter(new THREE.Vector3());
+          object.position.sub(center);
+          
+          // 设置材质
+          object.traverse(function (child) {
+            if (child instanceof THREE.Mesh) {
+              child.material = new THREE.MeshPhongMaterial({
+                color: 0x888888,
+                shininess: 100
+              });
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          
+          currentModel = object;
+          scene.add(currentModel);
+          
+          // 调整相机位置
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const fov = camera.fov * (Math.PI / 180);
+          let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+          cameraZ *= 1.5;
+          
+          camera.position.set(cameraZ, cameraZ, cameraZ);
+          camera.lookAt(0, 0, 0);
+          
+          if (controls) {
+            controls.target.set(0, 0, 0);
+            controls.update();
+          }
+          
+          URL.revokeObjectURL(url);
+          resolve();
+        },
+        function (progress) {
+          console.log('OBJ加载进度:', (progress.loaded / progress.total * 100) + '%');
+        },
+        function (error) {
+          URL.revokeObjectURL(url);
+          reject(error);
+        }
+      );
+    });
+  }
+  
+  /**
+   * 显示STEP文件信息
+   */
+  function showStepFileInfo(file) {
+    const viewer = document.getElementById('model-viewer');
+    if (!viewer) return;
+    
+    viewer.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #666;">
+        <div style="font-size: 48px; margin-bottom: 20px;">📐</div>
+        <h3 style="margin: 0 0 10px 0; color: #333;">STEP文件已上传</h3>
+        <p style="margin: 0; font-size: 14px;">文件: ${file.name}</p>
+        <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">STEP格式需要专业CAD软件查看</p>
+      </div>
+    `;
+  }
+  
+  /**
+   * 显示不支持的文件信息
+   */
+  function showUnsupportedFileInfo(file) {
+    const viewer = document.getElementById('model-viewer');
+    if (!viewer) return;
+    
+    viewer.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #666;">
+        <div style="font-size: 48px; margin-bottom: 20px;">📄</div>
+        <h3 style="margin: 0 0 10px 0; color: #333;">文件已上传</h3>
+        <p style="margin: 0; font-size: 14px;">文件: ${file.name}</p>
+        <p style="margin: 10px 0 0 0; font-size: 12px; color: #999;">此文件格式暂不支持3D预览</p>
+      </div>
+    `;
+  }
+  
+  /**
+   * 显示错误信息
+   */
+  function showErrorInfo(message) {
+    const viewer = document.getElementById('model-viewer');
+    if (!viewer) return;
+    
+    viewer.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #f44336;">
+        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+        <h3 style="margin: 0 0 10px 0; color: #f44336;">加载失败</h3>
+        <p style="margin: 0; font-size: 14px;">${message}</p>
+      </div>
+    `;
+  }
+  
+  /**
+   * 初始化文件上传
+   */
+  function initFileUpload() {
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    
+    // 点击上传区域
+    dropzone.addEventListener('click', function(e) {
+      if (e.target.tagName !== 'BUTTON') {
+        fileInput.click();
+      }
+    });
+    
+    // 文件选择
+    fileInput.addEventListener('change', function(e) {
+      if (e.target.files.length > 0) {
+        handleFiles(Array.from(e.target.files));
+      }
+    });
+    
+    // 拖拽上传
+    dropzone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    
+    dropzone.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+    });
+    
+    dropzone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      
+      if (e.dataTransfer.files.length > 0) {
+        handleFiles(Array.from(e.dataTransfer.files));
+      }
+    });
+    
+    // 缩放滑块
+    const scaleSlider = document.getElementById('scale');
+    const scaleValue = document.getElementById('scale-value');
+    scaleSlider.addEventListener('input', function() {
+      scaleValue.textContent = this.value + '%';
+    });
+    
+    // 备注字符计数
+    const noteTextarea = document.getElementById('note');
+    const charCount = document.getElementById('char-count');
+    noteTextarea.addEventListener('input', function() {
+      charCount.textContent = this.value.length;
+    });
+  }
+  
+  /**
+   * 初始化表单
+   */
+  function initForm() {
+    const form = document.getElementById('quote-form');
+    
+    // 监听所有表单变化
+    form.addEventListener('change', updateSubmitButton);
+    form.addEventListener('input', updateSubmitButton);
+    
+    // 自动填充客户信息
+    const customerEmail = getCustomerEmail();
+    if (customerEmail) {
+      document.getElementById('customer-email').value = customerEmail;
+    }
+    
+    const customerName = getCustomerName();
+    if (customerName) {
+      document.getElementById('customer-name').value = customerName;
+    }
+  }
+  
+  /**
+   * 处理选择的文件
+   */
+  async function handleFiles(files) {
+    // 验证文件
+    const validFiles = files.filter(file => {
+      const validExtensions = ['.step', '.stp', '.stl', '.obj', '.3ds', '.fbx', '.dae', '.gltf', '.glb', '.dwg', '.dxf', '.pdf'];
+      const fileName = file.name.toLowerCase();
+      const isValid = validExtensions.some(ext => fileName.endsWith(ext));
+      
+      if (!isValid) {
+        alert(`不支持的文件格式: ${file.name}`);
+        return false;
+      }
+      
+      // 验证文件大小（100MB）
+      const maxSize = 100 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert(`文件过大: ${file.name} (${formatFileSize(file.size)})`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    // 添加到已选文件列表
+    selectedFiles = [...selectedFiles, ...validFiles];
+    
+    // 更新文件预览
+    updateFilePreview();
+    updateSubmitButton();
+    
+    // 加载第一个3D文件进行预览
+    if (validFiles.length > 0) {
+      const firstFile = validFiles[0];
+      await load3DModel(firstFile);
+    }
+  }
+  
+  /**
+   * 更新文件预览
+   */
+  function updateFilePreview() {
+    const filePreview = document.getElementById('file-preview');
+    const fileList = document.getElementById('file-list');
+    
+    if (selectedFiles.length === 0) {
+      filePreview.style.display = 'none';
+      return;
+    }
+    
+    filePreview.style.display = 'block';
+    
+    fileList.innerHTML = selectedFiles.map((file, index) => `
+      <div class="file-item" onclick="selectFileForPreview(${index})">
+        <div class="file-icon">${getFileIcon(file.name)}</div>
+        <div class="file-info">
+          <div class="file-name">${file.name}</div>
+          <div class="file-size">${formatFileSize(file.size)}</div>
+        </div>
+        <button class="remove-file" onclick="event.stopPropagation(); removeFile(${index})">✕</button>
+      </div>
+    `).join('');
+  }
+  
+  /**
+   * 选择文件进行预览
+   */
+  async function selectFileForPreview(index) {
+    if (index >= 0 && index < selectedFiles.length) {
+      const file = selectedFiles[index];
+      await load3DModel(file);
+      
+      // 高亮选中的文件
+      const fileItems = document.querySelectorAll('.file-item');
+      fileItems.forEach((item, i) => {
+        if (i === index) {
+          item.style.backgroundColor = '#e3f2fd';
+          item.style.borderColor = '#2196f3';
+        } else {
+          item.style.backgroundColor = '#f8f9fa';
+          item.style.borderColor = '#e0e0e0';
+        }
+      });
+    }
+  }
+  
+  /**
+   * 移除文件
+   */
+  function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    updateFilePreview();
+    updateSubmitButton();
+  }
+  
+  /**
+   * 获取文件图标
+   */
+  function getFileIcon(fileName) {
+    const ext = fileName.toLowerCase().split('.').pop();
+    const iconMap = {
+      'step': '📐', 'stp': '📐', 'stl': '🔺', 'obj': '📦',
+      '3ds': '🎯', 'fbx': '🎮', 'dae': '🌟', 'gltf': '✨', 'glb': '✨',
+      'dwg': '📏', 'dxf': '📐', 'pdf': '📄'
+    };
+    return iconMap[ext] || '📄';
+  }
+  
+  /**
+   * 数量变化
+   */
+  function changeQuantity(delta) {
+    const qtyInput = document.getElementById('quantity');
+    const newValue = Math.max(1, parseInt(qtyInput.value) + delta);
+    qtyInput.value = newValue;
+    updateSubmitButton();
+  }
+  
+  /**
+   * 更新提交按钮状态
+   */
+  function updateSubmitButton() {
+    const submitBtn = document.getElementById('submit-btn');
+    
+    // 检查必填项
+    const hasFiles = selectedFiles.length > 0;
+    const hasMaterial = document.getElementById('material').value;
+    const hasEmail = document.getElementById('customer-email').value;
+    
+    submitBtn.disabled = !(hasFiles && hasMaterial && hasEmail);
+  }
+  
+  /**
+   * 提交询价
+   */
+  async function submitQuote() {
+    if (selectedFiles.length === 0) {
+      showError('请先上传文件');
+      return;
+    }
+    
+    const submitBtn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnLoading = document.getElementById('btn-loading');
+    
+    // 禁用按钮
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    
+    try {
+      // 获取表单数据
+      const formData = getFormData();
+      
+      // 验证必填项
+      if (!formData.material || !formData.customerEmail) {
+        throw new Error('请填写所有必填项');
+      }
+      
+      // 准备所有文件数据
+      const mainFile = selectedFiles.find(f => is3DFile(f.name)) || selectedFiles[0];
+      const mainFileData = await readFileAsBase64(mainFile);
+      
+      // 准备所有文件的数据
+      const allFilesData = [];
+      for (const file of selectedFiles) {
+        const fileData = await readFileAsBase64(file);
+        allFilesData.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          data: fileData
+        });
+      }
+      
+       // 调用 API 提交询价
+       console.log('提交询价数据:', {
+         fileName: mainFile.name,
+         customerEmail: formData.customerEmail,
+         customerName: formData.customerName,
+         quantity: parseInt(formData.quantity),
+         material: formData.material,
+         color: formData.color,
+         precision: formData.precision,
+         tolerance: formData.tolerance,
+         roughness: formData.roughness,
+         hasThread: formData.hasThread,
+         hasAssembly: formData.hasAssembly,
+         scale: formData.scale,
+         note: formData.note,
+         allFiles: selectedFiles.map(f => f.name),
+         fileCount: selectedFiles.length
+       });
+       
+       const response = await fetch(`${API_BASE}/submit-quote-real`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json'
+         },
+         body: JSON.stringify({
+           fileName: mainFile.name,
+           fileUrl: mainFileData, // 主文件数据
+           customerEmail: formData.customerEmail,
+           customerName: formData.customerName,
+           quantity: parseInt(formData.quantity),
+           material: formData.material,
+           color: formData.color,
+           precision: formData.precision,
+           tolerance: formData.tolerance,
+           roughness: formData.roughness,
+           hasThread: formData.hasThread,
+           hasAssembly: formData.hasAssembly,
+           scale: formData.scale,
+           note: formData.note,
+           allFiles: allFilesData, // 发送所有文件数据
+           lineItems: [{
+             customAttributes: [
+               { key: '材料', value: formData.material },
+               { key: '颜色', value: formData.color },
+               { key: '精度', value: formData.precision },
+               { key: '公差标准', value: formData.tolerance },
+               { key: '表面粗糙度', value: formData.roughness },
+               { key: '是否有螺纹', value: formData.hasThread ? '是' : '否' },
+               { key: '是否有装配标记', value: formData.hasAssembly ? '是' : '否' },
+               { key: '缩放比例', value: formData.scale + '%' },
+               { key: '备注', value: formData.note || '' },
+               { key: '上传文件数量', value: selectedFiles.length.toString() },
+               { key: '文件列表', value: selectedFiles.map(f => f.name).join(', ') },
+               ...selectedFiles.map((file, index) => ({
+                 key: `文件${index + 1}_名称`,
+                 value: file.name
+               }))
+             ]
+           }]
+         })
+       });
+       
+       console.log('API响应状态:', response.status);
+       console.log('API响应头:', response.headers);
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        quoteResult = result;
+        showSuccess(result);
+      } else {
+        throw new Error(result.message || result.error || '提交失败');
+      }
+      
+    } catch (error) {
+      console.error('提交询价失败:', error);
+      showError(error.message);
+    } finally {
+      submitBtn.disabled = false;
+      btnText.style.display = 'inline';
+      btnLoading.style.display = 'none';
+    }
+  }
+  
+  /**
+   * 获取表单数据
+   */
+  function getFormData() {
+    const form = document.getElementById('quote-form');
+    const formData = new FormData(form);
+    
+    return {
+      unit: formData.get('unit'),
+      material: formData.get('material'),
+      color: formData.get('color'),
+      precision: formData.get('precision'),
+      tolerance: formData.get('tolerance'),
+      roughness: formData.get('roughness'),
+      hasThread: formData.get('hasThread'),
+      hasAssembly: formData.get('hasAssembly'),
+      scale: formData.get('scale'),
+      quantity: formData.get('quantity'),
+      customerName: formData.get('customer-name'),
+      customerEmail: formData.get('customer-email'),
+      note: formData.get('note')
+    };
+  }
+  
+  /**
+   * 判断是否为 3D 文件
+   */
+  function is3DFile(fileName) {
+    const ext = fileName.toLowerCase().split('.').pop();
+    return ['step', 'stp', 'stl', 'obj', '3ds', 'fbx', 'dae', 'gltf', 'glb'].includes(ext);
+  }
+  
+  /**
+   * 读取文件为 Base64
+   */
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+  
+  /**
+   * 显示成功消息
+   */
+  function showSuccess(result) {
+    const successMessage = document.getElementById('success-message');
+    const successText = document.getElementById('success-text');
+    
+    successText.innerHTML = `
+      询价单号: <strong>${result.quoteId}</strong><br>
+      ${result.message || '我们将尽快为您报价，请留意邮件通知。'}
+    `;
+    
+    successMessage.style.display = 'block';
+  }
+  
+  /**
+   * 查看询价单
+   */
+  function viewQuote() {
+    if (quoteResult && quoteResult.viewUrl) {
+      window.location.href = quoteResult.viewUrl;
+    }
+  }
+  
+  /**
+   * 关闭成功提示
+   */
+  function closeSuccessMessage() {
+    const successMessage = document.getElementById('success-message');
+    successMessage.style.display = 'none';
+    
+    // 重置表单
+    document.getElementById('quote-form').reset();
+    selectedFiles = [];
+    updateFileList();
+    updateSubmitButton();
+    hideError();
+  }
+  
+  /**
+   * 显示错误消息
+   */
+  function showError(message) {
+    const errorMessage = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    
+    errorText.textContent = message;
+    errorMessage.style.display = 'block';
+  }
+  
+  /**
+   * 隐藏错误消息
+   */
+  function hideError() {
+    document.getElementById('error-message').style.display = 'none';
+  }
+  
+  /**
+   * 格式化文件大小
+   */
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+  
+  /**
+   * 获取客户邮箱（从 Shopify）
+   */
+  function getCustomerEmail() {
+    if (window.Shopify && window.Shopify.customer && window.Shopify.customer.email) {
+      return window.Shopify.customer.email;
+    }
+    return '';
+  }
+  
+  /**
+   * 获取客户姓名（从 Shopify）
+   */
+  function getCustomerName() {
+    if (window.Shopify && window.Shopify.customer) {
+      const customer = window.Shopify.customer;
+      if (customer.firstName && customer.lastName) {
+        return `${customer.firstName} ${customer.lastName}`;
+      } else if (customer.firstName) {
+        return customer.firstName;
+      }
+    }
+    return '';
+  }
+</script>
