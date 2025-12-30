@@ -1,8 +1,5 @@
 {
   "functions": {
-    "api/options.js": {
-      "maxDuration": 5
-    },
     "api/submit-quote-real.js": {
       "maxDuration": 20
     },
@@ -11,23 +8,6 @@
     },
     "api/send-invoice-email.js": {
       "maxDuration": 15
-    },
-    "api/store-file-real.js": {
-      "maxDuration": 30
     }
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/:path*/options",
-      "destination": "/api/options"
-    }
-  ]
+  }
 }
