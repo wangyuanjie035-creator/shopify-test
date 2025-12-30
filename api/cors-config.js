@@ -3,6 +3,13 @@
  */
 
 export function setCorsHeaders(req, res) {
+  console.log('CORS 请求信息:', {
+    method: req.method,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+    url: req.url
+  });
+
   // 允许的来源（Shopify 店铺 + 本地调试）
   const allowedOrigins = new Set([
     'https://sain-pdc-test.myshopify.com',
@@ -27,8 +34,17 @@ export function setCorsHeaders(req, res) {
   res.setHeader('Vary', 'Origin');
 
   // 允许的动词与头
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PATCH,DELETE,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
+
+  // 如果是 OPTIONS 请求，直接返回 200
+  if (req.method === 'OPTIONS') {
+    console.log('处理 OPTIONS 预检请求');
+    res.status(200).end();
+    return true; // 返回 true 表示已处理
+  }
+  
+  return false; // 返回 false 表示需要继续处理
 }
