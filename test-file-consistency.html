@@ -58,7 +58,7 @@
                 showResult('🔄 步骤1: 上传文件到 Shopify Files...', 'info');
                 
                 const fileData = await readFileAsBase64(file);
-                const uploadResponse = await fetch('shopify-13s4.vercel.app/api/store-file-real', {
+                const uploadResponse = await fetch('https://shopify-13s4.vercel.app/api/store-file-real', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
