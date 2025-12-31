@@ -1218,7 +1218,7 @@ async function submitToDraftOrderMultiFile() {
   // 第一步：批量上传文件到Shopify Files
   let uploadResults = [];
   try {
-    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4/api';
+    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
     
     console.log('📤 调用多文件上传API...');
     console.log('API_BASE:', API_BASE);
