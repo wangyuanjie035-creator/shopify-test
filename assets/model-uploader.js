@@ -1171,150 +1171,155 @@
   }
 
   // 提交到草稿订单（多文件版本）
-  async function submitToDraftOrderMultiFile() {
-    console.log('📝 开始创建草稿订单（多文件）...');
+async function submitToDraftOrderMultiFile() {
+  console.log('📝 开始创建草稿订单（多文件）...');
+  
+  // 获取客户信息
+  const customerInfo = await getCustomerInfo();
+  console.log('客户信息:', customerInfo);
+  
+  // 准备文件数组
+  const filesToUpload = [];
+  
+  // 处理每个选中的文件
+  for (const fileId of selectedFileIds) {
+    const fileData = fileManager.files.get(fileId);
+    if (!fileData) continue;
     
-    // 获取客户信息
-    const customerInfo = await getCustomerInfo();
-    console.log('客户信息:', customerInfo);
+    console.log('处理文件:', fileData.file.name);
     
-    // 准备文件数组
-    const filesToUpload = [];
+    // 获取文件配置
+    const config = fileData.config || {};
     
-    // 处理每个选中的文件
-    for (const fileId of selectedFileIds) {
-      const fileData = fileManager.files.get(fileId);
-      if (!fileData) continue;
-      
-      console.log('处理文件:', fileData.file.name);
-      
-      // 获取文件配置
-      const config = fileData.config || {};
-      
-      // 读取文件为Base64
-      let fileUrl = null;
-      try {
-        fileUrl = await getFileBase64(fileData.file);
-        console.log(`文件 ${fileData.file.name} 转换为Base64，长度: ${fileUrl.length}`);
-      } catch (error) {
-        console.error('转换文件为Base64失败:', error);
-        continue;
-      }
-      
-      // 添加到上传列表
-      filesToUpload.push({
-        fileUrl: fileUrl,
-        fileName: fileData.file.name,
-        fileType: fileData.file.type || 'application/octet-stream'
-      });
-    }
-    
-    if (filesToUpload.length === 0) {
-      throw new Error('没有可上传的文件');
-    }
-    
-    console.log(`准备上传 ${filesToUpload.length} 个文件到Shopify Files`);
-    
-    // 第一步：批量上传文件到Shopify Files
-    let uploadResults = [];
+    // 读取文件为Base64
+    let fileBase64 = null;
     try {
-      const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
-      
-      console.log('📤 调用多文件上传API...');
-      console.log('API_BASE:', API_BASE);
-      console.log('文件数量:', filesToUpload.length);
-      
-      const storeFileResponse = await fetch(`${API_BASE}/store-file-real`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          files: filesToUpload
-        })
-      });
-      
-      console.log('文件上传API响应状态:', storeFileResponse.status);
-      
-      if (!storeFileResponse.ok) {
-        const errorText = await storeFileResponse.text();
-        console.error('❌ 文件批量上传失败:', errorText);
-        throw new Error(`文件上传失败: ${storeFileResponse.status} - ${errorText}`);
-      }
-      
-      const uploadResult = await storeFileResponse.json();
-      console.log('✅ 文件批量上传成功:', uploadResult);
-      
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.message || '文件上传失败');
-      }
-      
-      uploadResults = uploadResult.files || [];
-      
+      fileBase64 = await getFileBase64(fileData.file);
+      console.log(`文件 ${fileData.file.name} 转换为Base64，长度: ${fileBase64.length}`);
     } catch (error) {
-      console.error('❌ 文件上传过程中发生错误:', error);
-      throw error;
+      console.error('转换文件为Base64失败:', error);
+      continue;
     }
     
-    // 第二步：创建草稿订单
-    try {
-      const API_BASE = 'https://shopify-13s4.vercel.app/api';
-      
-      // 准备询价提交数据
-      const requestBody = {
-        files: uploadResults.filter(f => f.success).map(file => ({
-          fileUrl: file.fileUrl || '',
-          fileName: file.fileName,
-          fileType: file.fileType || 'application/octet-stream'
-        })),
-        customerEmail: customerInfo.email,
-        customerName: customerInfo.name,
-        quantity: 1,
-        material: '待确认',
-        color: '待确认',
-        precision: '待确认',
-        notes: `批量询价 - ${uploadResults.filter(f => f.success).length}个文件`
-      };
-      
-      console.log('📤 提交多文件询价请求...');
-      console.log('请求体:', {
-        customerEmail: requestBody.customerEmail,
-        customerName: requestBody.customerName,
-        fileCount: requestBody.files.length
-      });
-      
-      const response = await fetch(`${API_BASE}/submit-quote-real`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      console.log('询价API响应状态:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ 创建草稿订单失败:', errorText);
-        throw new Error(`创建草稿订单失败: ${response.status} - ${errorText}`);
-      }
-      
-      const result = await response.json();
-      console.log('✅ 草稿订单创建成功:', result);
-      
-      if (!result.draftOrderId) {
-        console.error('❌ API返回结果中没有draftOrderId:', result);
-        throw new Error('API返回结果中没有draftOrderId');
-      }
-      
-      return result.draftOrderId;
-      
-    } catch (error) {
-      console.error('❌ 创建草稿订单过程中发生错误:', error);
-      throw error;
-    }
+    // 添加到上传列表 - 正确的字段名
+    filesToUpload.push({
+      fileData: fileBase64,  // 关键：改为 fileData
+      fileName: fileData.file.name,
+      fileType: fileData.file.type || 'application/octet-stream'
+    });
   }
+  
+  if (filesToUpload.length === 0) {
+    throw new Error('没有可上传的文件');
+  }
+  
+  console.log(`准备上传 ${filesToUpload.length} 个文件到Shopify Files`);
+  
+  // 第一步：批量上传文件到Shopify Files
+  let uploadResults = [];
+  try {
+    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4/api';
+    
+    console.log('📤 调用多文件上传API...');
+    console.log('API_BASE:', API_BASE);
+    console.log('文件数量:', filesToUpload.length);
+    console.log('第一个文件数据:', {
+      fileName: filesToUpload[0].fileName,
+      hasFileData: !!filesToUpload[0].fileData,
+      fileDataLength: filesToUpload[0].fileData ? filesToUpload[0].fileData.length : 0
+    });
+    
+    const storeFileResponse = await fetch(`${API_BASE}/store-file-real`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        files: filesToUpload
+      })
+    });
+    
+    console.log('文件上传API响应状态:', storeFileResponse.status);
+    
+    if (!storeFileResponse.ok) {
+      const errorText = await storeFileResponse.text();
+      console.error('❌ 文件批量上传失败:', errorText);
+      throw new Error(`文件上传失败: ${storeFileResponse.status} - ${errorText}`);
+    }
+    
+    const uploadResult = await storeFileResponse.json();
+    console.log('✅ 文件批量上传成功:', uploadResult);
+    
+    if (!uploadResult.success) {
+      throw new Error(uploadResult.message || '文件上传失败');
+    }
+    
+    uploadResults = uploadResult.files || [];
+    
+  } catch (error) {
+    console.error('❌ 文件上传过程中发生错误:', error);
+    throw error;
+  }
+  
+  // 第二步：创建草稿订单
+  try {
+    const API_BASE = 'https://shopify-13s4/api';
+    
+    // 准备询价提交数据
+    const requestBody = {
+      files: uploadResults.filter(f => f.success).map(file => ({
+        fileUrl: file.fileUrl || '',  // 这里可以是 fileUrl，因为后端会处理
+        fileName: file.fileName,
+        fileType: file.fileType || 'application/octet-stream'
+      })),
+      customerEmail: customerInfo.email,
+      customerName: customerInfo.name,
+      quantity: 1,
+      material: '待确认',
+      color: '待确认',
+      precision: '待确认',
+      notes: `批量询价 - ${uploadResults.filter(f => f.success).length}个文件`
+    };
+    
+    console.log('📤 提交多文件询价请求...');
+    console.log('请求体:', {
+      customerEmail: requestBody.customerEmail,
+      customerName: requestBody.customerName,
+      fileCount: requestBody.files.length
+    });
+    
+    const response = await fetch(`${API_BASE}/submit-quote-real`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log('询价API响应状态:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ 创建草稿订单失败:', errorText);
+      throw new Error(`创建草稿订单失败: ${response.status} - ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log('✅ 草稿订单创建成功:', result);
+    
+    if (!result.draftOrderId) {
+      console.error('❌ API返回结果中没有draftOrderId:', result);
+      throw new Error('API返回结果中没有draftOrderId');
+    }
+    
+    return result.draftOrderId;
+    
+  } catch (error) {
+    console.error('❌ 创建草稿订单过程中发生错误:', error);
+    throw error;
+  }
+}
 
   // 辅助函数：将文件转换为Base64
   async function getFileBase64(file) {
