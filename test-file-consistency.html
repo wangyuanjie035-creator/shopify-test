@@ -90,7 +90,7 @@
                 // 步骤2: 下载文件
                 showResult('🔄 步骤2: 从 Shopify Files 下载文件...', 'info');
 
-                const downloadResponse = await fetch(`shopify-13s4.vercel.app/api/download-file-real?id=${uploadResult.shopifyFileId}`);
+                const downloadResponse = await fetch(`https://shopify-13s4.vercel.app/api/download-file-real?id=${uploadResult.shopifyFileId}`);
                 
                 if (!downloadResponse.ok) {
                     throw new Error(`下载失败: ${downloadResponse.status}`);

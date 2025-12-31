@@ -17,7 +17,6 @@ export function setCorsHeaders(req, res) {
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'https://shopify-13s4.vercel.app',
-    'https://shopify-13s4.vercel.app' // 添加你的旧域名（如果需要）
   ]);
 
   // 优先使用 Origin，其次从 Referer 提取
