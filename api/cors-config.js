@@ -1,3 +1,4 @@
+// api/cors-config.js
 /**
  * CORS配置 - 统一处理跨域请求
  */

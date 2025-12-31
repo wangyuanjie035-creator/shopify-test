@@ -1,3 +1,4 @@
+// api/store-file-real.js
 import { Blob } from 'buffer';
 import FormData from 'form-data';
 import { setCorsHeaders } from './cors-config.js';
@@ -29,17 +30,17 @@ import { setCorsHeaders } from './cors-config.js';
 
 export default async function handler(req, res) {
   console.log('========================================');
-  console.log('收到请求:', {
-    method: req.method,
-    url: req.url,
-    origin: req.headers.origin,
-    referer: req.headers.referer,
-    host: req.headers.host,
-    'user-agent': req.headers['user-agent'],
+   // 详细记录请求信息
+  console.log('请求方法:', req.method);
+  console.log('请求头:', {
     'content-type': req.headers['content-type'],
     'content-length': req.headers['content-length'],
-    'x-vercel-id': req.headers['x-vercel-id'] // Vercel特定的ID
+    origin: req.headers.origin
   });
+  
+  // 记录原始请求体（只记录前500字符避免日志过大）
+  const rawBody = JSON.stringify(req.body || {}).substring(0, 500);
+  console.log('原始请求体（前500字符）:', rawBody);
   
   setCorsHeaders(req, res);
 
@@ -50,56 +51,54 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-       // 添加调试日志
-      console.log('📥 store-file-real: 收到请求');
-      console.log('请求体类型:', typeof req.body);
-      console.log('请求体内容:', JSON.stringify(req.body, null, 2));
-      console.log('请求体键名:', Object.keys(req.body || {}));
-      
-      // 检查是否有 files 字段
-      if (req.body.files) {
-        console.log('files 字段类型:', typeof req.body.files);
-        console.log('files 是数组?', Array.isArray(req.body.files));
-        if (Array.isArray(req.body.files)) {
-          console.log('files 数组长度:', req.body.files.length);
-          if (req.body.files.length > 0) {
-            console.log('第一个文件:', {
-              fileName: req.body.files[0].fileName,
-              hasFileData: !!req.body.files[0].fileData,
-              fileDataLength: req.body.files[0].fileData ? req.body.files[0].fileData.length : 0
-            });
-          }
-        }
-      }
-      
-      // 检查是否有 singleFile 字段
-      if (req.body.singleFile) {
-        console.log('singleFile 字段:', req.body.singleFile);
-      }
-      
-      // 检查是否有直接的文件字段
-      if (req.body.fileData) {
-        console.log('有直接 fileData 字段');
-      }
-      const { files, singleFile } = req.body;
-
-      // 支持两种格式：单文件（兼容旧格式）和多文件
-      let fileList = [];
-      
-      if (files && Array.isArray(files)) {
-        // 多文件格式
-        fileList = files;
-      } else if (singleFile || req.body.fileData) {
-        // 单文件格式（兼容旧版本）
-        fileList = [{
-          fileData: req.body.fileData || singleFile.fileData,
-          fileName: req.body.fileName || singleFile.fileName,
-          fileType: req.body.fileType || singleFile.fileType
-        }];
-      } else {
+      // 验证请求体
+      if (!req.body) {
         return res.status(400).json({
           success: false,
-          message: '缺少必要参数：files（文件数组）或 singleFile（单个文件）'
+          message: '请求体为空'
+        });
+      }
+      
+      console.log('完整请求体键名:', Object.keys(req.body));
+      
+      // 支持两种格式：多文件和单文件
+      let fileList = [];
+      
+      // 检查是否有 files 数组
+      if (req.body.files && Array.isArray(req.body.files)) {
+        console.log('使用 files 数组格式，数量:', req.body.files.length);
+        fileList = req.body.files;
+        
+        // 验证每个文件都有必要的字段
+        fileList.forEach((file, index) => {
+          console.log(`文件 ${index + 1}:`, {
+            fileName: file.fileName,
+            hasFileData: !!file.fileData,
+            fileDataLength: file.fileData ? file.fileData.length : 0,
+            fileType: file.fileType
+          });
+        });
+      }
+      // 检查是否有 singleFile（兼容旧格式）
+      else if (req.body.singleFile) {
+        console.log('使用 singleFile 格式');
+        fileList = [req.body.singleFile];
+      }
+      // 检查是否有直接的文件参数（最旧格式）
+      else if (req.body.fileData) {
+        console.log('使用直接文件参数格式');
+        fileList = [{
+          fileData: req.body.fileData,
+          fileName: req.body.fileName || 'model.stl',
+          fileType: req.body.fileType || 'application/octet-stream'
+        }];
+      }
+      else {
+        console.log('无法识别的请求格式:', Object.keys(req.body));
+        return res.status(400).json({
+          success: false,
+          message: '缺少必要参数：files（文件数组）或 singleFile（单个文件）',
+          receivedKeys: Object.keys(req.body)
         });
       }
 
@@ -107,6 +106,30 @@ export default async function handler(req, res) {
         return res.status(400).json({
           success: false,
           message: '没有需要上传的文件'
+        });
+      }
+
+      console.log(`📁 开始处理 ${fileList.length} 个文件...`);
+
+      // 验证每个文件都有必要的字段
+      const invalidFiles = [];
+      fileList.forEach((file, index) => {
+        if (!file.fileData || !file.fileName) {
+          invalidFiles.push({
+            index,
+            fileName: file.fileName || `文件${index + 1}`,
+            missing: [!file.fileData && 'fileData', !file.fileName && 'fileName'].filter(Boolean)
+          });
+        }
+      });
+
+      if (invalidFiles.length > 0) {
+        console.log('无效的文件:', invalidFiles);
+        return res.status(400).json({
+          success: false,
+          message: '部分文件缺少必要参数',
+          invalidFiles,
+          details: `缺少参数: ${invalidFiles.map(f => f.missing.join(', ')).join('; ')}`
         });
       }
 
