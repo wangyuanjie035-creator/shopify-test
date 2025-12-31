@@ -50,6 +50,37 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
+       // 添加调试日志
+      console.log('📥 store-file-real: 收到请求');
+      console.log('请求体类型:', typeof req.body);
+      console.log('请求体内容:', JSON.stringify(req.body, null, 2));
+      console.log('请求体键名:', Object.keys(req.body || {}));
+      
+      // 检查是否有 files 字段
+      if (req.body.files) {
+        console.log('files 字段类型:', typeof req.body.files);
+        console.log('files 是数组?', Array.isArray(req.body.files));
+        if (Array.isArray(req.body.files)) {
+          console.log('files 数组长度:', req.body.files.length);
+          if (req.body.files.length > 0) {
+            console.log('第一个文件:', {
+              fileName: req.body.files[0].fileName,
+              hasFileData: !!req.body.files[0].fileData,
+              fileDataLength: req.body.files[0].fileData ? req.body.files[0].fileData.length : 0
+            });
+          }
+        }
+      }
+      
+      // 检查是否有 singleFile 字段
+      if (req.body.singleFile) {
+        console.log('singleFile 字段:', req.body.singleFile);
+      }
+      
+      // 检查是否有直接的文件字段
+      if (req.body.fileData) {
+        console.log('有直接 fileData 字段');
+      }
       const { files, singleFile } = req.body;
 
       // 支持两种格式：单文件（兼容旧格式）和多文件
