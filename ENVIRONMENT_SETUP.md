@@ -88,7 +88,7 @@ curl http://localhost:3000/api/quotes
 
 #### 2. 选择项目
 
-找到你的项目（例如：`shopify-v587`）
+找到你的项目（例如：`shopify-13s4`）
 
 #### 3. 进入设置
 
@@ -241,7 +241,7 @@ Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ACCESS_TOKEN
 curl http://localhost:3000/api/quotes
 
 # 测试生产环境
-curl https://shopify-v587.vercel.app/api/quotes
+curl https://shopify-13s4.vercel.app/api/quotes
 ```
 
 如果返回错误信息包含 "Missing" 或 "Access denied"，说明配置有问题。

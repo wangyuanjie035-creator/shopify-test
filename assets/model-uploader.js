@@ -1209,7 +1209,7 @@
     console.log(`准备上传 ${filesToUpload.length} 个文件`);
     
     // 调用Vercel API创建草稿订单
-    const API_BASE = 'https://shopify-v587.vercel.app/api';
+    const API_BASE = 'https://shopify-13s4.vercel.app/api';
     
     // 获取第一个文件的名称
     const firstFileId = Array.from(selectedFileIds)[0];
@@ -1356,7 +1356,7 @@
 
   // 提交询价到草稿订单（保留用于管理端功能）
   async function submitQuoteToDraftOrder() {
-    const API_BASE = 'https://shopify-v587.vercel.app/api';  // 请修改为你的实际 Vercel 域名
+    const API_BASE = 'https://shopify-13s4.vercel.app/api';  // 请修改为你的实际 Vercel 域名
     
     console.log('开始提交询价到草稿订单...');
     console.log('API_BASE:', API_BASE);
@@ -1793,7 +1793,7 @@
 
     // 追加：同步到 Vercel 后端（Metaobject: quote）
     try {
-      const base = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api').replace(/\/$/, '');
+      const base = (window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api').replace(/\/$/, '');
       
       // 确保 API 基础地址正确
       if (!window.QUOTES_API_BASE) {

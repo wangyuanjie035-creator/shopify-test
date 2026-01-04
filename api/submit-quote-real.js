@@ -35,7 +35,7 @@
 
 import { setCorsHeaders } from '../utils/cors-config.js';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-v587.vercel.app';
+const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-13s4.vercel.app';
 
 export default async function handler(req, res) {
   // 设置CORS头
