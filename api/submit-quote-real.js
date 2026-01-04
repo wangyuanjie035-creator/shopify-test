@@ -1,7 +1,7 @@
 // api/submit-quote-real.js
 import { setCorsHeaders } from './cors-config.js';
 
-const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-13s4.vercel.app';
+const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-v587.vercel.app';
 
 /**
  * ═══════════════════════════════════════════════════════════════

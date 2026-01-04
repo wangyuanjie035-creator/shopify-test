@@ -398,7 +398,7 @@ export default async function handler(req, res) {
       btn.textContent = '⏳ 创建订单中...';
       
       // 1. 调用后端 API 创建草稿订单
-      const response = await fetch('shopify-13s4.vercel.app/api/create-draft-order', {
+      const response = await fetch('shopify-v587.vercel.app/api/create-draft-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -414,7 +414,7 @@ export default async function handler(req, res) {
       
       if (response.ok && result.success) {
         // 2. 更新 Metaobject 状态
-        await fetch('shopify-13s4.vercel.app/api/quotes?handle=' + quote.handle, {
+        await fetch('shopify-v587.vercel.app/api/quotes?handle=' + quote.handle, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

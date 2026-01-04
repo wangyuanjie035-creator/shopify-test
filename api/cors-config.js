@@ -17,7 +17,7 @@ export function setCorsHeaders(req, res) {
     'https://sain-pdc-test.myshopify.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://shopify-13s4.vercel.app',
+    'https://shopify-v587.vercel.app',
   ]);
 
   // 优先使用 Origin，其次从 Referer 提取

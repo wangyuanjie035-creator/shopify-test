@@ -236,7 +236,7 @@ if (req.method === 'OPTIONS') {
 
 ```javascript
 // 在 Shopify 商店页面的控制台执行
-fetch('shopify-13s4.vercel.app/api/quotes')
+fetch('shopify-v587.vercel.app/api/quotes')
   .then(res => res.json())
   .then(data => console.log(data))
   .catch(err => console.error(err));
@@ -251,7 +251,7 @@ Access to fetch at '...' from origin '...' has been blocked by CORS policy
 **方法 2: 使用 curl（不受 CORS 限制）**
 
 ```bash
-curl shopify-13s4.vercel.app/api/quotes
+curl shopify-v587.vercel.app/api/quotes
 ```
 
 curl 请求不会被 CORS 阻止，可以用来测试 API 本身是否正常。

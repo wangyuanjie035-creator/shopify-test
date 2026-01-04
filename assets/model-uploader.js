@@ -1215,7 +1215,7 @@ async function uploadFilesIndividually(files) {
    console.log('开始逐个文件上传，文件数量:', files.length);
   
   const uploadResults = [];
-  const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
+  const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
   
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -1323,7 +1323,7 @@ async function testFileUploadDirect() {
   
   // 发送请求
   try {
-    const response = await fetch('https://shopify-13s4.vercel.app/api/store-file-real', {
+    const response = await fetch('https://shopify-v587.vercel.app/api/store-file-real', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1391,7 +1391,7 @@ async function submitToDraftOrderMultiFile() {
   showLoading(`正在上传 ${filesToUpload.length} 个文件...`);
   let uploadedFiles;
   try {
-    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
+    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
     const response = await fetch(`${API_BASE}/store-file-real`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1442,7 +1442,7 @@ async function submitToDraftOrderMultiFile() {
   // 4. 调用 `submit-quote-real`
   try {
     const customerInfo = await getCustomerInfo();
-    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api';
+    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
     const response = await fetch(`${API_BASE}/submit-quote-real`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1770,7 +1770,7 @@ async function submitToDraftOrderMultiFile() {
 
     // 追加：同步到 Vercel 后端（Metaobject: quote）
     try {
-      const base = (window.QUOTES_API_BASE || 'https://shopify-13s4.vercel.app/api').replace(/\/$/, '');
+      const base = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api').replace(/\/$/, '');
       
       // 确保 API 基础地址正确
       if (!window.QUOTES_API_BASE) {
