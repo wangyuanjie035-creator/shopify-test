@@ -1106,6 +1106,14 @@ async function placeOrder() {
     alert('订单尚未报价，请等待客服报价后再下单');
     return;
   }
+
+  // 如果已有支付链接（可能已生成/已支付），直接跳转，避免重复完成草稿订单
+  if (order.invoiceUrl) {
+    if (confirm('检测到该订单已有支付链接，是否直接前往结账？')) {
+      window.location.href = order.invoiceUrl;
+      return;
+    }
+  }
   
   // 确认下单
   if (!confirm(`确认将订单添加到购物车？\n\n总金额: $${totalPrice.toFixed(2)}\n\n点击确定后将跳转到购物车页面。`)) {

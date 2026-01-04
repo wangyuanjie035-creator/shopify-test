@@ -408,7 +408,7 @@ RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
 ```javascript
 // templates/page.admin-dashboard.liquid
 async function sendQuoteEmail(orderId, customerEmail, amount, files, note, senderEmail) {
-  const response = await fetch('shopify-v587.vercel.app/api/send-email-auto', {
+  const response = await fetch('https://shopify-v587.vercel.app/api/send-email-auto', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

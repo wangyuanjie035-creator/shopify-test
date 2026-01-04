@@ -77,6 +77,48 @@
         const customerEmail = ({{ customer.email | json }} || '').toLowerCase();
         const isAdmin = ADMIN_EMAILS.includes(customerEmail);
 
+        const hideMoreMenus = () => {
+          // 隐藏标题为 More 的折叠菜单或链接
+          document.querySelectorAll('details.disclosure').forEach(d => {
+            const summaryText = (d.querySelector('summary')?.textContent || '').trim().toLowerCase();
+            if (summaryText === 'more') {
+              d.style.display = 'none';
+            }
+          });
+          document.querySelectorAll('a, button').forEach(el => {
+            const txt = (el.textContent || '').trim().toLowerCase();
+            if (txt === 'more') {
+              el.style.display = 'none';
+              if (el.parentElement && el.parentElement.tagName === 'LI') {
+                el.parentElement.style.display = 'none';
+              }
+            }
+          });
+        };
+
+        const hideCartIcon = () => {
+          // 隐藏右上角购物车按钮（尽可能多的选择器兜底）
+          const selectors = [
+            'a[href="/cart"]',
+            'a[href*="/cart"]',
+            'button[data-cart-toggle]',
+            '[data-cart-toggle]',
+            '.header__icon--cart',
+            '.header__icon-item',
+            '.site-header__cart',
+            '.icon-cart',
+            '[aria-label="Cart"]',
+            '[aria-label="购物车"]',
+            '[data-icon-type="cart"]',
+            '[data-testid="cart-count-bubble"]'
+          ];
+          document.querySelectorAll(selectors.join(',')).forEach(el => {
+            const li = el.closest('li');
+            if (li) li.style.display = 'none';
+            el.style.display = 'none';
+          });
+        };
+
         if (!isAdmin) {
           const hideLinks = () => {
             const links = document.querySelectorAll('a[href*="admin-draft-orders"], a[href*="/pages/admin-draft-orders"]');
@@ -87,17 +129,23 @@
               }
             });
             // 隐藏可能出现的“More”折叠入口
-            document.querySelectorAll('details.disclosure').forEach(d => {
-              const summaryText = (d.querySelector('summary')?.textContent || '').trim().toLowerCase();
-              if (summaryText === 'more' || !d.querySelector('a')) {
-                d.style.display = 'none';
-              }
-            });
+            hideMoreMenus();
+            hideCartIcon();
           };
           if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', hideLinks);
           } else {
             hideLinks();
+          }
+        } else {
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+              hideMoreMenus();
+              hideCartIcon();
+            });
+          } else {
+            hideMoreMenus();
+            hideCartIcon();
           }
         }
       })();

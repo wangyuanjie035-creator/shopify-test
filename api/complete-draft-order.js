@@ -1,12 +1,13 @@
 // 直接设置CORS头
 function setCorsHeaders(res) {
+  // 可按需追加更多允许的来源
   res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // 设置CORS头
   setCorsHeaders(res);
 
@@ -24,7 +25,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { draftOrderId } = req.body;
+    const { draftOrderId } = req.body || {};
     
     if (!draftOrderId) {
       return res.status(400).json({
@@ -33,11 +34,11 @@ module.exports = async (req, res) => {
       });
     }
 
-    const shop = process.env.SHOP;
-    const adminToken = process.env.ADMIN_TOKEN;
+    const shop = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
+    const adminToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
 
     if (!shop || !adminToken) {
-      throw new Error('Missing environment variables: SHOP or ADMIN_TOKEN');
+      throw new Error('Missing environment variables: SHOPIFY_STORE_DOMAIN/SHOP or SHOPIFY_ACCESS_TOKEN/ADMIN_TOKEN');
     }
 
     const shopifyDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
@@ -83,11 +84,26 @@ module.exports = async (req, res) => {
     const completeResult = await completeResponse.json();
     console.log('📋 完成草稿订单结果:', completeResult);
 
-    if (completeResult.data?.draftOrderComplete?.userErrors?.length > 0) {
-      throw new Error(`完成草稿订单失败: ${completeResult.data.draftOrderComplete.userErrors.map(e => e.message).join(', ')}`);
+    const userErrors = completeResult.data?.draftOrderComplete?.userErrors || [];
+    const completedDraftOrder = completeResult.data?.draftOrderComplete?.draftOrder;
+
+    // 如果订单已支付，返回成功并附带信息，避免前端阻塞
+    const paidError = userErrors.find(e => e.message?.includes('has been paid'));
+    if (paidError) {
+      return res.status(200).json({
+        success: true,
+        message: '订单已支付或已完成，无需重复支付',
+        draftOrder: completedDraftOrder || null
+      });
     }
 
-    const completedDraftOrder = completeResult.data.draftOrderComplete.draftOrder;
+    if (userErrors.length > 0) {
+      throw new Error(`完成草稿订单失败: ${userErrors.map(e => e.message).join(', ')}`);
+    }
+
+    if (!completedDraftOrder) {
+      throw new Error(`完成草稿订单失败: 响应为空或无draftOrder`);
+    }
 
     return res.status(200).json({
       success: true,
@@ -111,4 +127,4 @@ module.exports = async (req, res) => {
       message: '完成草稿订单失败'
     });
   }
-};
+}

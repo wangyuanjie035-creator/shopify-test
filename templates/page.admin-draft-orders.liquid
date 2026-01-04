@@ -989,7 +989,7 @@
     }
   }
 
-  // 下载订单文件（基于之前工作版本的实现）
+  // 下载订单文件（优先使用 Shopify 文件 URL / ID）
   async function downloadOrderFile(orderId) {
     try {
       console.log('开始下载文件，订单ID:', orderId);
@@ -1000,35 +1000,48 @@
         return;
       }
 
-      console.log('订单详情:', order);
-      console.log('lineItems:', order.lineItems);
-
       if (!order.lineItems || order.lineItems.length === 0) {
         alert('订单中没有商品信息');
         return;
       }
 
-      // 从订单获取文件信息
       const fileName = order.lineItems?.[0]?.title || '未知文件';
-      const invoiceUrl = order.invoiceUrl;
       const fileId = order.fileId;
       const fileData = order.fileData;
-      
-      // 获取文件存储方式信息
-      const storageMethod = order.lineItems?.[0]?.customAttributes?.find(attr => attr.key === '文件存储方式')?.value;
+      const invoiceUrl = order.invoiceUrl;
+      const shopifyFileUrl = order.lineItems?.[0]?.customAttributes?.find(attr => attr.key === 'Shopify文件URL')?.value;
       const shopifyFileId = order.lineItems?.[0]?.customAttributes?.find(attr => attr.key === 'Shopify文件ID')?.value;
       
       console.log('订单文件信息:', { 
         fileName, 
-        invoiceUrl, 
         fileId, 
         fileData: fileData ? '有数据' : '无数据',
-        storageMethod,
+        invoiceUrl,
+        shopifyFileUrl,
         shopifyFileId
       });
 
-      // 按照文档标准流程：使用标准的downloadFile函数
-      await downloadFile(fileData || fileId, fileName);
+      // 1) 优先使用 Shopify 文件 URL
+      if (shopifyFileUrl && (shopifyFileUrl.startsWith('http://') || shopifyFileUrl.startsWith('https://'))) {
+        const link = document.createElement('a');
+        link.href = shopifyFileUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // 2) 有 Shopify 文件ID则调用后端下载
+      if (shopifyFileId) {
+        const dlUrl = `${API_BASE}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
+        window.open(dlUrl, '_blank');
+        return;
+      }
+
+      // 3) 兼容 Base64 或占位 ID
+      await downloadFile(fileData || fileId || invoiceUrl, fileName);
     } catch (error) {
       console.error('下载文件失败:', error);
       alert('下载文件失败: ' + error.message);

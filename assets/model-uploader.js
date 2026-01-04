@@ -1,4 +1,3 @@
-// api/model-uploader.js
 /**
  * 3D Model Uploader - Complete Multi-File Version
  * 支持多文件独立管理、ZIP解压、完整错误反馈
@@ -48,12 +47,6 @@
     modelViewer = document.getElementById('model-viewer');
     viewerContainer = document.getElementById('viewer-container');
     loadingIndicator = document.getElementById('loading-indicator');
-    
-    // 确保文件输入框支持多文件选择
-    if (fileInput) {
-      fileInput.setAttribute('multiple', 'multiple');
-      console.log('✅ 文件输入框已设置为支持多文件选择');
-    }
     
     // 拦截原生的产品表单提交
     interceptNativeProductForms();
@@ -240,7 +233,7 @@
   function handleFileSelect(event) {
     console.log('File select event triggered');
     const files = Array.from(event.target.files);
-    console.log(`选择了 ${files.length} 个文件:`, files.map(f => f.name));
+    console.log('Selected files:', files);
     processFiles(files);
   }
 
@@ -259,7 +252,7 @@
     event.preventDefault();
     dropzone.classList.remove('dragover');
     const files = Array.from(event.dataTransfer.files);
-    console.log(`拖放了 ${files.length} 个文件:`, files.map(f => f.name));
+    console.log('Dropped files:', files);
     processFiles(files);
   }
 
@@ -268,61 +261,16 @@
     if (files.length === 0) return;
 
     showLoading(true);
+    // 不在这里隐藏错误，让验证函数决定是否显示错误
 
     try {
       let processedCount = 0;
       let errorCount = 0;
       const errors = [];
 
-      // 检查文件类型并分类处理
-      const threeDFiles = [];
-      const twoDFiles = [];
-      const zipFiles = [];
-
       for (const file of files) {
-        if (file.name.toLowerCase().endsWith('.zip')) {
-          zipFiles.push(file);
-        } else if (is3DFile(file.name)) {
-          threeDFiles.push(file);
-        } else if (is2DFile(file.name)) {
-          twoDFiles.push(file);
-        } else if (file.name.toLowerCase().endsWith('.stl')) {
-          errors.push(`❌ 文件"${file.name}"是STL格式，系统仅支持STP/STEP格式文件。STL文件无法转换为STEP文件，请重新导出为STP/STEP格式`);
-          errorCount++;
-        } else {
-          errors.push(`❌ 文件"${file.name}"格式不支持，仅支持STP/STEP格式文件以及对应的2D图纸（DWG/DXF/PDF）`);
-          errorCount++;
-        }
-      }
-
-      // 处理ZIP文件
-      if (zipFiles.length > 0) {
-        for (const zipFile of zipFiles) {
-          try {
-            await processZipFile(zipFile);
-            processedCount++;
-          } catch (error) {
-            errorCount++;
-            errors.push(`${zipFile.name}: ${error.message}`);
-          }
-        }
-      }
-
-      // 处理3D文件
-      for (const file of threeDFiles) {
         try {
-          await processRegularFile(file, '3d');
-          processedCount++;
-        } catch (error) {
-          errorCount++;
-          errors.push(`${file.name}: ${error.message}`);
-        }
-      }
-
-      // 处理2D文件
-      for (const file of twoDFiles) {
-        try {
-          await processRegularFile(file, '2d');
+          await processSingleFile(file);
           processedCount++;
         } catch (error) {
           errorCount++;
@@ -335,25 +283,22 @@
       if (processedCount > 0) {
         console.log('Calling showSuccess and setTimeout for displayFileList');
         showSuccess(`成功处理 ${processedCount} 个文件！`);
-        
+        console.log('showSuccess called, now setting timeout');
         // 延迟显示文件列表，确保DOM元素准备好
         setTimeout(() => {
           console.log('setTimeout callback executed, calling displayFileList');
           displayFileList();
-          
-          // 如果有文件成功处理，自动勾选所有3D文件
-          setTimeout(() => {
-            autoSelect3DFiles();
-          }, 200);
-          
           // 文件列表显示后再验证配置
           if (fileManager.currentFileId) {
             const currentFileData = fileManager.files.get(fileManager.currentFileId);
             if (currentFileData) {
               validateFileConfiguration(currentFileData);
+              // 注意：不要在此处无条件启用按钮，保持由验证结果控制
             }
           }
         }, 100);
+        // 移除：不要无条件启用立即询价按钮
+        // enableAddToCart();
       }
 
       if (errorCount > 0) {
@@ -361,16 +306,29 @@
       }
 
       showLoading(false);
-      
-      // 清空文件输入框，允许重新选择
-      if (fileInput) {
-        fileInput.value = '';
-      }
-      
     } catch (error) {
       console.error('Error processing files:', error);
       showError(error.message);
       showLoading(false);
+    }
+  }
+
+  // 处理单个文件
+  async function processSingleFile(file) {
+    console.log('Processing file:', file.name);
+
+    // 检查STL文件并直接拒绝
+    if (file.name.toLowerCase().endsWith('.stl')) {
+      throw new Error(`文件"${file.name}"是STL格式，系统仅支持STP/STEP格式文件。STL文件无法转换为STEP文件，请重新导出为STP/STEP格式`);
+    }
+
+    // 检查文件类型
+    if (file.name.toLowerCase().endsWith('.zip')) {
+      return await processZipFile(file);
+    } else if (isValidFile(file)) {
+      return await processRegularFile(file);
+    } else {
+      throw new Error('不支持的文件格式，仅支持STP/STEP格式文件以及对应的2D图纸（DWG/DXF/PDF）');
     }
   }
 
@@ -425,11 +383,7 @@
 
           // 处理解压出的文件
           for (const extractedFile of extractedFiles) {
-            const type = is3DFile(extractedFile.name) ? '3d' : 
-                        is2DFile(extractedFile.name) ? '2d' : 'other';
-            if (type !== 'other') {
-              await processRegularFile(extractedFile, type);
-            }
+            await processRegularFile(extractedFile);
           }
 
           // 显示处理结果
@@ -456,7 +410,7 @@
   }
 
   // 处理常规文件
-  async function processRegularFile(file, type = '3d') {
+  async function processRegularFile(file) {
     const fileId = fileManager.nextFileId++;
     const fileConfig = createDefaultFileConfig();
     
@@ -466,11 +420,8 @@
       file: file,
       config: fileConfig,
       dimensions: null,
-      model: null,
-      fileType: type // 添加文件类型标识：3d或2d
+      model: null
     });
-
-    console.log(`📁 添加${type === '3d' ? '3D' : '2D'}文件: ${file.name}, ID: ${fileId}`);
 
     // 如果是第一个文件，设为当前文件
     if (!fileManager.currentFileId) {
@@ -480,12 +431,10 @@
         try { displayFileList(); } catch (_) {}
       }, 50);
       // 异步加载3D模型，不阻塞文件列表显示
-      if (type === '3d') {
-        try {
-          loadModelForFile(fileId).catch((err) => console.error('Async loadModelForFile error:', err));
-        } catch (e) {
-          console.error('Failed to start async loadModelForFile:', e);
-        }
+      try {
+        loadModelForFile(fileId).catch((err) => console.error('Async loadModelForFile error:', err));
+      } catch (e) {
+        console.error('Failed to start async loadModelForFile:', e);
       }
     }
 
@@ -516,7 +465,7 @@
 
     try {
       // 如果是2D文件，不需要加载3D模型，直接显示占位符
-      if (fileData.fileType === '2d' || is2DFile(fileData.file.name)) {
+      if (is2DFile(fileData.file.name)) {
         console.log('2D file selected, showing placeholder');
         updateDimensionsDisplay();
         showViewerPlaceholder(fileData);
@@ -524,7 +473,7 @@
       }
 
       // 优先使用高级查看器加载STP/STEP文件
-      if (useAdvancedViewer && o3dvWrapper && (fileData.fileType === '3d' || is3DFile(fileData.file.name))) {
+      if (useAdvancedViewer && o3dvWrapper && is3DFile(fileData.file.name)) {
         console.log('Using advanced viewer for STP/STEP file');
         // 如果当前模型相同，直接返回，避免重新加载
         if (o3dvWrapper.currentModel && o3dvWrapper.currentModel.name === fileData.file.name) {
@@ -657,51 +606,47 @@
     fileList.style.display = 'block';
     fileItems.innerHTML = '';
     
-    // 分别统计3D和2D文件
-    let threeDCount = 0;
-    let twoDCount = 0;
-    
-    // 显示所有3D文件
+    // 显示所有文件：3D文件独立显示，2D文件显示在对应3D文件下方，孤儿2D文件也显示
     fileManager.files.forEach((fileData, fileId) => {
-      if (fileData.fileType === '3d' || is3DFile(fileData.file.name)) {
-        threeDCount++;
+      if (is3DFile(fileData.file.name)) {
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         
         // 查找对应的2D文件
         const corresponding2DFiles = getCorresponding2DFiles(fileId);
+        console.log(`3D文件 ${fileData.file.name} 对应的2D文件:`, corresponding2DFiles.map(f => f.name));
+        const has2DIndicator = corresponding2DFiles.length > 0 ? 
+          `<div class="file-2d-indicator">📄 已上传2D图纸: ${corresponding2DFiles.map(f => f.name).join(', ')}</div>` : '';
         
         const checkedAttr = selectedFileIds.has(fileId) ? 'checked' : '';
         fileItem.innerHTML = `
-          <div class="file-info">
-            <label style="display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" ${checkedAttr} onchange="toggleFileSelection(${fileId}, this.checked)">
-              <span class="file-name">${fileData.file.name}</span>
-              <span class="file-type-badge" style="background:#2196f3;color:white;padding:2px 6px;border-radius:4px;font-size:12px;">3D</span>
-            </label>
-            <span class="file-size">${formatFileSize(fileData.file.size)}</span>
-            ${fileData.dimensions ? `<span class="file-dimensions">${fileData.dimensions.width?.toFixed(1) || '?'} x ${fileData.dimensions.height?.toFixed(1) || '?'} x ${fileData.dimensions.depth?.toFixed(1) || '?'} mm</span>` : ''}
-            ${corresponding2DFiles.length > 0 ? 
-              `<div class="file-2d-indicator">📄 关联2D: ${corresponding2DFiles.map(f => f.name).join(', ')}</div>` : 
-              ''}
+            <div class="file-info">
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" ${checkedAttr} onchange="toggleFileSelection(${fileId}, this.checked)">
+            <span class="file-name">${fileData.file.name}</span>
+          </label>
+          <span class="file-size">${formatFileSize(fileData.file.size)}</span>
+          ${fileData.dimensions ? `<span class="file-dimensions">${fileData.dimensions.width.toFixed(1)} x ${fileData.dimensions.height.toFixed(1)} x ${fileData.dimensions.depth.toFixed(1)} mm</span>` : ''}
+      </div>
+            <div class="file-actions">
+          <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
+          <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
           </div>
-          <div class="file-actions">
-            <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
-            <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
-          </div>
+          ${has2DIndicator}
         `;
+        console.log('Created file item for:', fileData.file.name);
         fileItems.appendChild(fileItem);
+        console.log('Appended file item to fileItems, fileItems.children.length:', fileItems.children.length);
       }
     });
     
-    // 显示所有2D文件（孤儿文件）
+    // 显示孤儿2D文件（没有对应3D文件的2D文件）
     fileManager.files.forEach((fileData, fileId) => {
-      if (fileData.fileType === '2d' || is2DFile(fileData.file.name)) {
-        twoDCount++;
+      if (is2DFile(fileData.file.name)) {
         // 检查是否有对应的3D文件
         let hasCorresponding3D = false;
         for (const [otherFileId, otherFileData] of fileManager.files) {
-          if (otherFileId !== fileId && (otherFileData.fileType === '3d' || is3DFile(otherFileData.file.name))) {
+          if (otherFileId !== fileId && is3DFile(otherFileData.file.name)) {
             const corresponding2DFiles = getCorresponding2DFiles(otherFileId);
             if (corresponding2DFiles.some(f => f.id === fileId)) {
               hasCorresponding3D = true;
@@ -712,12 +657,12 @@
         
         // 如果没有对应的3D文件，显示这个孤儿2D文件
         if (!hasCorresponding3D) {
+          console.log(`孤儿2D文件: ${fileData.file.name}`);
           const fileItem = document.createElement('div');
           fileItem.className = 'file-item orphan-2d';
           fileItem.innerHTML = `
             <div class="file-info">
               <span class="file-name">${fileData.file.name}</span>
-              <span class="file-type-badge" style="background:#4caf50;color:white;padding:2px 6px;border-radius:4px;font-size:12px;">2D</span>
               <span class="file-size">${formatFileSize(fileData.file.size)}</span>
               <span class="file-type">2D图纸</span>
             </div>
@@ -732,40 +677,18 @@
       }
     });
     
-    // 显示文件统计
-    const statsElement = document.createElement('div');
-    statsElement.className = 'file-stats';
-    statsElement.innerHTML = `
-      <div style="font-size: 12px; color: #666; padding: 8px; border-top: 1px solid #eee;">
-        已选择: <strong>${selectedFileIds.size}</strong> 个3D文件 | 
-        总计: <strong>${threeDCount}</strong> 个3D文件, <strong>${twoDCount}</strong> 个2D文件
-      </div>
-    `;
-    fileItems.appendChild(statsElement);
+    console.log('displayFileList completed, final fileItems.children.length:', fileItems.children.length);
+    console.log('fileList.style.display:', fileList.style.display);
+    console.log('fileList.offsetHeight:', fileList.offsetHeight);
 
-    // 更新提交按钮状态
-    updateBulkButtonState();
-  }
-
-  // 自动勾选所有3D文件
-  function autoSelect3DFiles() {
-    console.log('自动勾选所有3D文件...');
-    selectedFileIds.clear();
-    
-    fileManager.files.forEach((fileData, fileId) => {
-      if (fileData.fileType === '3d' || is3DFile(fileData.file.name)) {
-        selectedFileIds.add(fileId);
-      }
-    });
-    
-    console.log(`已自动勾选 ${selectedFileIds.size} 个3D文件`);
+    // 更新提交按钮状态（基于勾选及校验）
     updateBulkButtonState();
   }
 
   // 获取对应3D文件的2D文件列表
   function getCorresponding2DFiles(threeDFileId) {
     const threeDFileData = fileManager.files.get(threeDFileId);
-    if (!threeDFileData || (!threeDFileData.fileType === '3d' && !is3DFile(threeDFileData.file.name))) {
+    if (!threeDFileData || !is3DFile(threeDFileData.file.name)) {
       return [];
     }
 
@@ -775,7 +698,7 @@
       .replace(/[^\u4e00-\u9fa5a-z0-9]/g, '');
     
     for (const [fileId, fileData] of fileManager.files) {
-      if (fileData.fileType === '2d' || is2DFile(fileData.file.name)) {
+      if (is2DFile(fileData.file.name)) {
         const twoDBaseName = fileData.file.name.replace(/\.[^/.]+$/, '').toLowerCase()
           .replace(/[_\-\s]+/g, '')
           .replace(/[^\u4e00-\u9fa5a-z0-9]/g, '');
@@ -821,7 +744,7 @@
   function toggleFileSelection(fileId, checked) {
     if (!fileManager.files.has(fileId)) return;
     const fileData = fileManager.files.get(fileId);
-    if (!is3DFile(fileData.file.name) && fileData.fileType !== '3d') return; // 仅3D参与询价
+    if (!is3DFile(fileData.file.name)) return; // 仅3D参与询价
     if (checked) {
       selectedFileIds.add(fileId);
     } else {
@@ -841,7 +764,7 @@
     const invalid = Array.from(selectedFileIds).some((id) => {
       const fd = fileManager.files.get(id);
       if (!fd) return true;
-      if (!is3DFile(fd.file.name) && fd.fileType !== '3d') return true; // 只允许3D
+      if (!is3DFile(fd.file.name)) return true; // 只允许3D
       const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
       return need2D && !hasCorresponding2DFile(id);
     });
@@ -988,7 +911,7 @@
   // 检查3D文件是否有对应的2D文件
   function hasCorresponding2DFile(threeDFileId) {
     const threeDFileData = fileManager.files.get(threeDFileId);
-    if (!threeDFileData || (!threeDFileData.fileType === '3d' && !is3DFile(threeDFileData.file.name))) {
+    if (!threeDFileData || !is3DFile(threeDFileData.file.name)) {
       return false;
     }
 
@@ -999,7 +922,7 @@
     
     // 检查是否有对应的2D文件
     for (const [fileId, fileData] of fileManager.files) {
-      if (fileData.fileType === '2d' || is2DFile(fileData.file.name)) {
+      if (is2DFile(fileData.file.name)) {
         const twoDBaseName = fileData.file.name.replace(/\.[^/.]+$/, '').toLowerCase()
           .replace(/[_\-\s]+/g, '') // 移除下划线、连字符、空格
           .replace(/[^\u4e00-\u9fa5a-z0-9]/g, ''); // 只保留中文、字母、数字
@@ -1121,403 +1044,490 @@
   }
 
   // 处理询价提交（统一：勾选为前提，提交所勾选文件到草稿订单）
-// 在 handleAddToCart 函数开始处添加验证
-async function handleAddToCart() {
-  if (selectedFileIds.size === 0) {
-    showError('请先勾选要询价的3D文件');
-    return;
-  }
+  function handleAddToCart() {
+    if (selectedFileIds.size === 0) {
+      showError('请先勾选要询价的3D文件');
+      updateBulkButtonState();
+      return;
+    }
 
-  console.log('=== 开始处理多文件询价 ===');
-  console.log('选中的文件数量:', selectedFileIds.size);
-  
-  // 验证所有选中的文件
-  const validationResults = [];
-  
-  for (const fileId of selectedFileIds) {
-    const fileData = fileManager.files.get(fileId);
-    if (!fileData) {
-      validationResults.push({ id: fileId, valid: false, error: '文件不存在' });
-      continue;
+    const check = validateFilesSet(selectedFileIds);
+    if (!check.ok) {
+      showError(check.errors.join('\n'));
+      updateBulkButtonState();
+      return;
     }
-    
-    const is3D = fileData.fileType === '3d' || is3DFile(fileData.file.name);
-    if (!is3D) {
-      validationResults.push({ 
-        id: fileId, 
-        name: fileData.file.name,
-        valid: false, 
-        error: '不是3D文件（仅支持STP/STEP格式）' 
-      });
-      continue;
-    }
-    
-    validationResults.push({ 
-      id: fileId, 
-      name: fileData.file.name,
-      valid: true 
-    });
-  }
-  
-  const validFiles = validationResults.filter(r => r.valid);
-  const invalidFiles = validationResults.filter(r => !r.valid);
-  
-  console.log('文件验证结果:', {
-    有效文件: validFiles.length,
-    无效文件: invalidFiles.length,
-    无效文件详情: invalidFiles
-  });
-  
-  if (validFiles.length === 0) {
-    showError('没有有效的3D文件。请确保选择的是STP或STEP格式的3D文件');
-    return;
-  }
-  
-  if (invalidFiles.length > 0) {
-    const errorMsg = `有 ${invalidFiles.length} 个文件无效:\n` +
-      invalidFiles.map(f => `• ${f.name || f.id}: ${f.error}`).join('\n');
-    showWarning(errorMsg);
-  }
-  
-  // 继续原有的流程
-  const ok = await ensureCustomerAuthAndAddress();
-  if (!ok) { return; }
-  const confirmed = await confirmCustomerInfo();
-  if (!confirmed) { return; }
-  
-  try {
-    console.log('开始创建草稿订单...');
-    const draftOrderId = await submitToDraftOrderMultiFile();
-    
-    if (draftOrderId && draftOrderId.trim() !== '') {
-      console.log('✅ 草稿订单创建成功，ID:', draftOrderId);
-      showSuccessMessage('询价已提交！正在跳转到订单详情...', 2000);
+
+    (async () => {
+      // 先进行登录与地址校验
+      const ok = await ensureCustomerAuthAndAddress();
+      if (!ok) { return; }
+      const confirmed = await confirmCustomerInfo();
+      if (!confirmed) { return; }
       
-      // 记录成功提交的文件
-      console.log('成功提交的文件:', validFiles.map(f => f.name));
-      
-      setTimeout(() => {
-        window.location.href = `/pages/my-quotes?id=${encodeURIComponent(draftOrderId)}`;
-      }, 2000);
-    } else {
-      throw new Error('草稿订单创建失败：未返回有效的订单ID');
-    }
-  } catch (e) {
-    console.error('❌ Draft order submission failed:', e);
-    showError('提交询价失败：' + (e.message || '未知错误'));
-  }
-}
-
-// 添加单个文件上传函数
-async function uploadFilesIndividually(files) {
-  console.log('开始逐个文件上传，文件数量:', files.length);
-  
-   console.log('开始逐个文件上传，文件数量:', files.length);
-  
-  const uploadResults = [];
-  const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
-  
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    console.log(`上传文件 ${i + 1}/${files.length}: ${file.fileName}`);
-    
-    try {
-      const response = await fetch(`${API_BASE}/store-file-real`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          // 修正：确保请求体包含 fileName 和 fileData
-          files: [{
-            fileName: file.fileName,
-            fileData: file.fileData,
-            fileType: file.fileType
-          }]
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.files && result.files[0]) {
-          uploadResults.push({
-            success: true,
-            fileName: file.fileName,
-            fileUrl: result.files[0].fileUrl || '',
-            shopifyFileId: result.files[0].shopifyFileId
-          });
-          console.log(`✅ 文件 ${file.fileName} 上传成功`);
-        } else {
-          console.warn(`⚠️ 文件 ${file.fileName} 上传API返回异常`);
-          uploadResults.push({
-            success: false,
-            fileName: file.fileName,
-            error: result.message || '上传异常'
-          });
-        }
-      } else {
-        console.error(`❌ 文件 ${file.fileName} 上传失败，状态码:`, response.status);
-        uploadResults.push({
-          success: false,
-          fileName: file.fileName,
-          error: `HTTP ${response.status}`
-        });
-      }
-    } catch (error) {
-      console.error(`❌ 文件 ${file.fileName} 上传异常:`, error);
-      uploadResults.push({
-        success: false,
-        fileName: file.fileName,
-        error: error.message
-      });
-    }
-  }
-  
-  return uploadResults;
-}
-
-// 在浏览器控制台运行这个函数
-async function testFileUploadDirect() {
-  console.log('=== 开始测试文件上传 ===');
-  
-  // 获取一个文件
-  const fileId = Array.from(selectedFileIds)[0];
-  const fileData = fileManager.files.get(fileId);
-  console.log('文件数据:', fileData);
-  
-  if (!fileData || !fileData.file) {
-    console.error('找不到文件数据');
-    return;
-  }
-  
-  const file = fileData.file;
-  console.log('文件对象:', {
-    名称: file.name,
-    大小: file.size,
-    类型: file.type,
-    是File实例: file instanceof File,
-    是Blob实例: file instanceof Blob
-  });
-  
-  // 读取为Base64
-  const fileBase64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  
-  console.log('Base64数据前200字符:', fileBase64.substring(0, 200));
-  console.log('Base64数据长度:', fileBase64.length);
-  
-  // 准备测试数据
-  const testPayload = {
-    files: [{
-      fileData: fileBase64,
-      fileName: file.name,
-      fileType: file.type || 'application/octet-stream'
-    }]
-  };
-  
-  console.log('测试请求体:', JSON.stringify(testPayload, null, 2).substring(0, 1000));
-  
-  // 发送请求
-  try {
-    const response = await fetch('https://shopify-v587.vercel.app/api/store-file-real', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(testPayload)
-    });
-    
-    console.log('响应状态:', response.status);
-    console.log('响应头:', Object.fromEntries(response.headers.entries()));
-    
-    const responseText = await response.text();
-    console.log('响应文本:', responseText);
-    
-    try {
-      const jsonResponse = JSON.parse(responseText);
-      console.log('JSON响应:', jsonResponse);
-    } catch (e) {
-      console.log('响应不是JSON格式');
-    }
-  } catch (error) {
-    console.error('请求失败:', error);
-  }
-}
-
-// 运行测试
-testFileUploadDirect();
-
-// 提交到草稿订单（多文件版本）
-async function submitToDraftOrderMultiFile() {
-  console.log('📝 开始创建草稿订单（多文件）...');
-  showLoading('正在准备文件...');
-
-  const filesToUpload = [];
-  // 1. 准备要上传的文件
-  for (const fileId of selectedFileIds) {
-    const fileData = fileManager.files.get(fileId);
-    if (fileData && fileData.fileType === '3d') {
       try {
-        const fileBase64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(fileData.file);
-        });
-        filesToUpload.push({
-          fileId: fileId, // 传递前端文件ID
-          fileData: fileBase64,
-          fileName: fileData.file.name,
-          fileType: fileData.file.type || 'application/octet-stream',
-          config: fileData.config // 传递配置
-        });
-      } catch (error) {
-        console.error(`❌ 读取文件 ${fileData.file.name} 失败:`, error);
+        // 第一步：创建草稿订单
+        console.log('📝 创建草稿订单...');
+        console.log('选中的文件ID:', Array.from(selectedFileIds));
+        
+        const draftOrderId = await submitToDraftOrder();
+        console.log('submitToDraftOrder 返回结果:', draftOrderId);
+        
+        if (draftOrderId && draftOrderId.trim() !== '') {
+          // 成功创建草稿订单，跳转到草稿订单详情页
+          console.log('✅ 草稿订单创建成功，ID:', draftOrderId);
+          showSuccessMessage('询价已提交！正在跳转到订单详情...', 2000);
+          setTimeout(() => {
+            console.log('准备跳转到:', `/pages/my-quotes?id=${encodeURIComponent(draftOrderId)}`);
+            window.location.href = `/pages/my-quotes?id=${encodeURIComponent(draftOrderId)}`;
+          }, 2000);
+        } else {
+          console.error('❌ 草稿订单创建失败：未返回有效的订单ID');
+          throw new Error('草稿订单创建失败：未返回有效的订单ID');
+        }
+        
+      } catch (e) {
+        console.error('❌ Draft order submission failed:', e);
+        console.error('❌ 错误堆栈:', e.stack);
+        showError('提交询价失败：' + (e && e.message ? e.message : '未知错误'));
       }
-    }
+    })();
   }
-
-  if (filesToUpload.length === 0) {
-    showError('没有有效的3D文件可供上传。');
-    return null;
-  }
-
-  // 2. 调用新的批量上传API
-  showLoading(`正在上传 ${filesToUpload.length} 个文件...`);
-  let uploadedFiles;
-  try {
-    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
-    const response = await fetch(`${API_BASE}/store-file-real`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: filesToUpload })
-    });
-
-    const result = await response.json();
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || '批量文件上传失败。');
-    }
-    uploadedFiles = result.files;
-    console.log('✅ 批量文件上传成功:', uploadedFiles);
-  } catch (error) {
-    console.error('❌ 批量文件上传API调用失败:', error);
-    showError(`文件上传失败: ${error.message}`);
-    return null;
-  }
-
-  // 3. 准备提交到 `submit-quote-real` 的数据
-  showLoading('正在创建报价...');
-  const lineItems = uploadedFiles.map(uploadedFile => {
-    const originalFile = fileManager.files.get(uploadedFile.fileId); // 使用fileId匹配
-    if (!originalFile) return null;
-
-    const properties = [
-      { name: '_shopify_file_id', value: uploadedFile.shopifyFileId },
-      { name: 'Material', value: originalFile.config.material },
-      { name: 'Quantity', value: String(originalFile.config.quantity) },
-      { name: 'Surface Finish', value: originalFile.config.surfaceFinish },
-      { name: 'Tolerance', value: originalFile.config.tolerance },
-      { name: 'Threading', value: originalFile.config.threading },
-      { name: 'Assembly', value: originalFile.config.assembly },
-      { name: 'Note', value: originalFile.config.note || '' }
-    ];
-    
-    return {
-      title: originalFile.file.name,
-      quantity: originalFile.config.quantity,
-      properties: properties.filter(p => p.value) // 过滤掉无效属性
-    };
-  }).filter(Boolean); // 过滤掉null项
-
-  if (lineItems.length === 0) {
-    showError('没有可添加到报价的有效文件。');
-    return null;
-  }
-
-  // 4. 调用 `submit-quote-real`
-  try {
-    const customerInfo = await getCustomerInfo();
-    const API_BASE = window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api';
-    const response = await fetch(`${API_BASE}/submit-quote-real`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerId: customerInfo.id,
-        lineItems: lineItems,
-        note: document.getElementById('quote-note')?.value || '',
-        tags: ['Real-time-quote', 'From-Model-Uploader']
-      })
-    });
-
-    const result = await response.json();
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || '创建草稿订单失败。');
-    }
-    
-    console.log('✅ 草稿订单创建成功:', result);
-    return result.draftOrderId;
-
-  } catch (error) {
-    console.error('❌ 提交报价失败:', error);
-    showError(`提交报价失败: ${error.message}`);
-    return null;
-  } finally {
-    hideLoading();
-  }
-}
 
   // 辅助函数：将文件转换为Base64
   async function getFileBase64(file) {
-      console.log('getFileBase64 接收到文件:', {
-      文件名: file.name,
-      文件大小: file.size,
-      文件类型: file.type,
-      文件对象类型: typeof file
-    });
-    
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
       reader.onload = () => {
-        console.log('FileReader 加载完成，结果长度:', reader.result?.length || 0);
+        // 返回完整的Data URL，包括data:前缀
         resolve(reader.result);
       };
-      
-      reader.onerror = (error) => {
-        console.error('FileReader 错误:', error);
-        reject(new Error('文件读取失败'));
-      };
-      
+      reader.onerror = () => reject(new Error('文件读取失败'));
       reader.readAsDataURL(file);
     });
   }
 
-  // 获取所有选中文件的Base64数据
-  async function getAllSelectedFilesBase64() {
-    const filePromises = Array.from(selectedFileIds).map(async (fileId) => {
+  // 获取第一个文件的数据URL
+  async function getFirstFileDataUrl() {
+    const firstFileId = Array.from(selectedFileIds)[0];
+    if (!firstFileId) return null;
+    
+    const fileData = fileManager.files.get(firstFileId);
+    if (!fileData || !fileData.file) return null;
+    
+    try {
+      return await getFileBase64(fileData.file);
+    } catch (error) {
+      console.error('获取文件数据失败:', error);
+      return null;
+    }
+  }
+
+  // 提交到草稿订单（第一步：立即询价）
+  async function submitToDraftOrder() {
+    console.log('📝 开始创建草稿订单...');
+    
+    // 获取客户信息
+    const customerInfo = await getCustomerInfo();
+    console.log('客户信息:', customerInfo);
+    
+    // 准备线上项目（Line Items）
+    const lineItems = [];
+    
+    // 处理每个选中的文件
+    for (const fileId of selectedFileIds) {
       const fileData = fileManager.files.get(fileId);
-      if (!fileData) return null;
+      if (!fileData) continue;
       
+      console.log('处理文件:', fileData.file.name);
+      
+      // 获取文件配置
+      const config = fileData.config || {};
+      
+      // 上传文件到本地存储
+      let realFileId = null;
       try {
-        const base64 = await getFileBase64(fileData.file);
-        return {
-          fileUrl: base64,
-          fileName: fileData.file.name,
-          fileType: fileData.file.type || 'application/octet-stream'
-        };
-      } catch (error) {
-        console.error(`转换文件 ${fileData.file.name} 失败:`, error);
-        return null;
+        if (window.fileStorageManager) {
+          realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          await window.fileStorageManager.uploadFile(fileData.file, realFileId);
+          console.log('✅ 文件上传成功，ID:', realFileId);
+        } else {
+          console.warn('⚠️ 文件存储管理器未加载，使用虚拟文件ID');
+          realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+      } catch (uploadError) {
+        console.error('❌ 文件上传失败:', uploadError);
+        realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       }
+      
+      // 创建线上项目（使用虚拟产品）
+      lineItems.push({
+        title: fileData.file.name,
+        quantity: parseInt(config.quantity || 1),
+        price: 0, // 初始价格为0，等待报价
+        requires_shipping: false,
+        customAttributes: [
+          { key: 'Order Type', value: '3D Model Quote' },
+          { key: '客户姓名', value: customerInfo.name },
+          { key: '客户邮箱', value: customerInfo.email },
+          { key: '文件大小', value: (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
+          { key: '材料', value: config.material || '未指定' },
+          { key: '颜色与表面', value: config.finish || '自然色' },
+          { key: '精度等级', value: config.precision || '标准 (±0.1mm)' },
+          { key: '公差标准', value: config.tolerance || 'GB/T 1804-2000 m级' },
+          { key: '表面粗糙度', value: config.roughness || 'Ra3.2' },
+          { key: '是否有螺纹', value: config.hasThread || 'no' },
+          { key: '是否有装配标记', value: config.hasAssembly || 'no' },
+          { key: '缩放比例', value: String(config.scale || 100) },
+          { key: '备注', value: config.note || '' },
+          { key: 'Quote Status', value: 'Pending' },
+          { key: '文件ID', value: realFileId },
+          { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
+        ]
+      });
+    }
+    
+    console.log('准备创建草稿订单，线上项目:', lineItems);
+    
+    // 调用Vercel API创建草稿订单
+    const API_BASE = 'https://shopify-v587.vercel.app/api';
+    
+    // 获取文件数据
+    const fileUrl = lineItems.length > 0 ? await getFirstFileDataUrl() : null;
+    console.log('文件数据长度:', fileUrl ? fileUrl.length : 0);
+    
+    // 获取第一个文件的名称
+    const firstFileId = Array.from(selectedFileIds)[0];
+    const firstFileName = firstFileId ? fileManager.files.get(firstFileId)?.file?.name : null;
+    
+    // 验证客户信息
+    if (!customerInfo || !customerInfo.email || !customerInfo.name) {
+      console.error('❌ 客户信息不完整:', customerInfo);
+      throw new Error('客户信息不完整，请确保已正确登录或输入客户信息');
+    }
+    
+    const requestBody = {
+      customerName: customerInfo.name,
+      customerEmail: customerInfo.email,
+      fileName: firstFileName || 'model.stl',
+      lineItems: lineItems,
+      fileUrl: fileUrl
+    };
+    
+    console.log('📤 请求体准备完成:', {
+      customerName: requestBody.customerName,
+      customerEmail: requestBody.customerEmail,
+      fileName: requestBody.fileName,
+      lineItemsCount: requestBody.lineItems.length,
+      hasFileData: !!requestBody.fileUrl
     });
     
-    const files = await Promise.all(filePromises);
-    return files.filter(file => file !== null);
+    const response = await fetch(`${API_BASE}/submit-quote-real`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log('API响应状态:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ 创建草稿订单失败:', response.status, errorText);
+      throw new Error(`创建草稿订单失败: ${response.status} - ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log('✅ 草稿订单创建成功:', result);
+    
+    if (!result.draftOrderId) {
+      console.error('❌ API返回结果中没有draftOrderId:', result);
+      throw new Error('API返回结果中没有draftOrderId');
+    }
+    
+    return result.draftOrderId;
+  }
+
+  // 提交到购物车（第二步：从草稿订单到购物车）
+  async function submitToCart() {
+    console.log('🛒 开始添加到购物车...');
+    
+    // 获取客户信息
+    const customerInfo = await getCustomerInfo();
+    console.log('客户信息:', customerInfo);
+    
+    // 准备购物车项目
+    const cartItems = [];
+    
+    // 处理每个选中的文件
+    for (const fileId of selectedFileIds) {
+      const fileData = fileManager.files.get(fileId);
+      if (!fileData) continue;
+      
+      console.log('处理文件:', fileData.file.name);
+      
+      // 获取文件配置
+      const config = fileData.config || {};
+      console.log('文件配置:', config);
+      
+      // 创建购物车项目
+      const cartItem = {
+        id: 0, // 虚拟产品ID
+        quantity: parseInt(config.quantity || 1),
+        properties: {
+          'Order Type': '3D Model Quote',
+          '客户姓名': customerInfo.name,
+          '客户邮箱': customerInfo.email,
+          '零件名称': fileData.file.name,
+          '文件大小': (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB',
+          '材料': config.material || '未指定',
+          '颜色': config.finish || '自然色',
+          '精度': config.precision || '标准 (±0.1mm)',
+          '公差': config.tolerance || 'GB/T 1804-2000 m级',
+          '粗糙度': config.roughness || 'Ra3.2',
+          '螺纹': config.hasThread || 'no',
+          '装配': config.hasAssembly || 'no',
+          '缩放': config.scale || 100,
+          '备注': config.note || '',
+          'Quote Status': 'Pending',
+          '_uuid': Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+        }
+      };
+      
+      cartItems.push(cartItem);
+    }
+    
+    console.log('准备添加到购物车的项目:', cartItems);
+    
+    try {
+      // 调用Shopify购物车API
+      const response = await fetch('/cart/add.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: cartItems
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('购物车API响应错误:', errorText);
+        throw new Error(`购物车API调用失败 (${response.status}): ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('添加到购物车成功:', result);
+      
+      // 显示成功消息
+      showSuccessMessage('询价提交成功！已添加到购物车。', [
+        '1. 您的询价已提交，请在购物车中查看',
+        '2. 客服将评估您的需求并报价',
+        '3. 报价完成后，您将收到通知',
+        '4. 您可以在购物车中查看最新状态'
+      ]);
+      
+      // 延迟跳转到购物车
+      setTimeout(() => {
+        window.location.href = '/cart';
+      }, 3000);
+      
+    } catch (error) {
+      console.error('添加到购物车失败:', error);
+      throw error;
+    }
+  }
+
+  // 提交询价到草稿订单（保留用于管理端功能）
+  async function submitQuoteToDraftOrder() {
+    const API_BASE = 'https://shopify-v587.vercel.app/api';  // 请修改为你的实际 Vercel 域名
+    
+    console.log('开始提交询价到草稿订单...');
+    console.log('API_BASE:', API_BASE);
+    
+    // 获取客户信息
+    const customerInfo = await getCustomerInfo();
+    console.log('客户信息:', customerInfo);
+    
+    // 处理每个选中的文件
+    for (const fileId of selectedFileIds) {
+      const fileData = fileManager.files.get(fileId);
+      if (!fileData) continue;
+      
+      console.log('处理文件:', fileData.file.name);
+      
+      // 上传文件并获取文件数据
+      const fileUrl = await uploadFileToStorage(fileData.file);
+      console.log('文件上传成功:', fileUrl ? '已获取URL' : 'Base64数据');
+      
+      // 获取文件配置
+      const config = fileData.config || {};
+      console.log('文件配置:', config);
+      
+      // 准备API请求数据
+      const requestData = {
+        fileName: fileData.file.name,
+        fileData: fileUrl, // 使用文件URL而不是Base64
+        customerEmail: customerInfo.email,
+        customerName: customerInfo.name,
+        quantity: parseInt(config.quantity || 1),
+        material: config.material || '未指定',
+        color: config.finish || '自然色',
+        precision: config.precision || '标准 (±0.1mm)',
+        tolerance: config.tolerance || 'GB/T 1804-2000 m级',
+        roughness: config.roughness || 'Ra3.2',
+        hasThread: config.hasThread || 'no',
+        hasAssembly: config.hasAssembly || 'no',
+        scale: config.scale || 100,
+        note: config.note || ''
+      };
+      
+      console.log('API请求数据:', requestData);
+      
+      try {
+        // 调用草稿订单API
+        const response = await fetch(`${API_BASE}/submit-quote-real`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+        
+        console.log('API响应状态:', response.status);
+        console.log('API响应头:', response.headers);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API响应错误:', errorText);
+          throw new Error(`API调用失败 (${response.status}): ${errorText}`);
+        }
+        
+      const result = await response.json();
+      console.log('API响应结果:', result);
+
+      if (!result.success) {
+        throw new Error(result.message || result.error || '提交失败');
+      }
+
+      console.log('询价提交成功:', result);
+      
+      // 显示成功消息和后续步骤
+      if (result.nextSteps) {
+        showSuccessMessage(result.message, result.nextSteps);
+      } else {
+        showSuccessMessage(result.message || '询价提交成功！');
+      }
+      
+      // 保存询价单号用于跳转
+      if (result.quoteId) {
+        window.quoteId = result.quoteId;
+      }
+
+    } catch (error) {
+        console.error('API调用失败:', error);
+        
+        // 提供更详细的错误信息
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          throw new Error(`网络连接失败，请检查：
+1. 网络连接是否正常
+2. API服务是否已部署: ${API_BASE}
+3. 域名配置是否正确
+4. 是否有防火墙阻止`);
+        } else {
+          throw error;
+        }
+      }
+    }
+    
+    // 发送询价通知
+    await sendQuoteNotification();
+    
+    // 延迟跳转，让用户看到成功消息
+    setTimeout(() => {
+      const quoteId = window.quoteId || 'Q' + Date.now();
+      window.location.href = `/pages/my-quotes?id=${quoteId}`;
+    }, 3000);
+  }
+
+  // 显示成功消息和后续步骤
+  function showSuccessMessage(message, nextSteps = []) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+    
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      ">
+        <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
+        <h2 style="color: #28a745; margin-bottom: 20px;">${message}</h2>
+        ${nextSteps.length > 0 ? `
+          <div style="text-align: left; margin: 20px 0;">
+            <h4 style="margin-bottom: 10px;">接下来：</h4>
+            <ul style="padding-left: 20px;">
+              ${nextSteps.map(step => `<li style="margin-bottom: 8px; color: #666;">${step}</li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+        <div style="margin-top: 20px; color: #666; font-size: 14px;">
+          3秒后自动跳转到询价详情页面...
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 3秒后自动关闭
+    setTimeout(() => {
+      modal.remove();
+    }, 3000);
+  }
+
+  // 上传文件到存储并返回URL
+  async function uploadFileToStorage(file) {
+    try {
+      // 如果有文件存储管理器，使用它
+      if (window.fileStorageManager) {
+        const fileId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        return await window.fileStorageManager.uploadFile(file, fileId);
+      }
+      
+      // 否则转换为Base64
+      return await readFileAsBase64(file);
+    } catch (error) {
+      console.error('文件上传失败:', error);
+      throw new Error('文件上传失败: ' + error.message);
+    }
+  }
+
+  // 读取文件为Base64
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   // 获取客户信息
@@ -1960,7 +1970,7 @@ async function submitToDraftOrderMultiFile() {
       font-weight: 500;
       z-index: 10000;
       max-width: 300px;
-      box-shadow: 0 4px 12px rgba(0,0,0,.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       transition: all 0.3s ease;
     `;
     
@@ -2384,7 +2394,7 @@ async function submitToDraftOrderMultiFile() {
     // 若高级查看器启用，则不覆盖容器
     if (useAdvancedViewer && o3dvWrapper) return;
     if (viewerContainer) {
-      const is2D = fileData.fileType === '2d' || is2DFile(fileData.file.name);
+      const is2D = is2DFile(fileData.file.name);
       const iconPath = is2D ? 
         'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' :
         'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z';
@@ -2688,19 +2698,6 @@ async function submitToDraftOrderMultiFile() {
     return null;
   }
 
-  // 清除加载指示器和占位符
-  function clearLoadingAndPlaceholder() {
-    if (loadingIndicator) {
-      loadingIndicator.style.display = 'none';
-    }
-    if (viewerContainer) {
-      const placeholder = viewerContainer.querySelector('.viewer-placeholder');
-      if (placeholder) {
-        placeholder.style.display = 'none';
-      }
-    }
-  }
-
   // ==================== Online3DViewer集成函数结束 ====================
 
   // 导出到全局
@@ -2710,9 +2707,6 @@ async function submitToDraftOrderMultiFile() {
     selectFile,
     removeFile,
     enableAddToCart,
-    // 多文件相关功能
-    getAllSelectedFilesBase64,
-    autoSelect3DFiles,
     // Online3DViewer集成功能
     loadSTPWithAdvancedViewer,
     toggleViewerMode,
@@ -2838,7 +2832,7 @@ async function submitToDraftOrderMultiFile() {
 
       const tip = document.createElement('div');
       tip.style.cssText = 'font-size:12px;color:#666;';
-      tip.textContent = '请确认以上信息准确无误，点击"确认信息"后将提交询价到购物车。';
+      tip.textContent = '请确认以上信息准确无误，点击“确认信息”后将提交询价到购物车。';
       body.appendChild(tip);
 
       const actions = document.createElement('div');
@@ -2873,7 +2867,7 @@ async function submitToDraftOrderMultiFile() {
       const fd = fileManager.files.get(id);
       if (!fd) { errors.push(`文件ID ${id} 不存在`); continue; }
       if (!isValidFile(fd.file)) { errors.push(`❌ 文件"${fd.file.name}"格式不支持`); }
-      if (!is3DFile(fd.file.name) && fd.fileType !== '3d') { continue; }
+      if (!is3DFile(fd.file.name)) { continue; }
       const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
       if (need2D && !hasCorresponding2DFile(id)) {
         const reason = fd.config.hasThread === 'yes' ? '螺纹' : (fd.config.hasAssembly === 'yes' ? '装配标记' : '特殊要求');
@@ -2883,46 +2877,80 @@ async function submitToDraftOrderMultiFile() {
     return { ok: errors.length === 0, errors };
   }
 
-  // 显示成功消息和后续步骤
-  function showSuccessMessage(message, delay = 2000) {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+  // ===== 报价面板（全屏独立界面） =====
+  function ensureQuotePanel() {
+    if (document.getElementById('quote-panel-overlay')) return;
+    const style = document.createElement('style');
+    style.textContent = `
+      #quote-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:10000}
+      #quote-panel{position:fixed;inset:5% 10%;background:#fff;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.2);display:flex;flex-direction:column;z-index:10001}
+      #quote-panel-header{padding:16px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
+      #quote-panel-title{font-size:18px;font-weight:600}
+      #quote-panel-close{border:none;background:#f5f5f5;border-radius:6px;padding:8px 12px;cursor:pointer}
+      #quote-panel-body{padding:16px 20px;overflow:auto}
+      .quote-item{border:1px solid #eee;border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+      .quote-left{display:flex;flex-direction:column;gap:6px}
+      .quote-name{font-weight:600}
+      .quote-meta{font-size:12px;color:#666}
+      .quote-status{color:#1976d2;background:rgba(25,118,210,.08);padding:6px 10px;border-radius:999px;font-size:12px}
     `;
-    
-    modal.innerHTML = `
-      <div style="
-        background: white;
-        border-radius: 12px;
-        padding: 30px;
-        max-width: 500px;
-        width: 90%;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0,0,0,.3);
-      ">
-        <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
-        <h2 style="color: #28a745; margin-bottom: 20px;">${message}</h2>
-        <div style="margin-top: 20px; color: #666; font-size: 14px;">
-          ${delay/1000}秒后自动跳转到询价详情页面...
+    document.head.appendChild(style);
+    const overlay = document.createElement('div');
+    overlay.id = 'quote-panel-overlay';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeQuotePanel(); });
+    const panel = document.createElement('div');
+    panel.id = 'quote-panel';
+    panel.innerHTML = `
+      <div id="quote-panel-header">
+        <div id="quote-panel-title">询价明细</div>
+        <div>
+          <button id="quote-panel-close">关闭</button>
         </div>
       </div>
+      <div id="quote-panel-body"></div>
     `;
-    
-    document.body.appendChild(modal);
-    
-    // 延迟后自动关闭
-    setTimeout(() => {
-      modal.remove();
-    }, delay);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    document.getElementById('quote-panel-close').addEventListener('click', closeQuotePanel);
+  }
+
+  function renderQuotePanel(fileIds) {
+    ensureQuotePanel();
+    const body = document.getElementById('quote-panel-body');
+    if (!body) return;
+    body.innerHTML = '';
+    const ids = Array.from(fileIds);
+    if (ids.length === 0) {
+      const empty = document.createElement('div');
+      empty.textContent = '未勾选文件';
+      body.appendChild(empty);
+      return;
+    }
+    ids.forEach((id) => {
+      const fd = fileManager.files.get(id);
+      if (!fd) return;
+      const div = document.createElement('div');
+      div.className = 'quote-item';
+      div.innerHTML = `
+        <div class="quote-left">
+          <div class="quote-name">${fd.file.name}</div>
+          <div class="quote-meta">数量: ${fd.config.quantity || 1} ｜ 材料: ${fd.config.material || ''} ｜ 精度: ${fd.config.precision || ''}</div>
+        </div>
+        <div class="quote-status">报价中</div>
+      `;
+      body.appendChild(div);
+    });
+  }
+
+  function openQuotePanel(fileIds) {
+    ensureQuotePanel();
+    renderQuotePanel(fileIds);
+    const overlay = document.getElementById('quote-panel-overlay');
+    if (overlay) overlay.style.display = 'block';
+  }
+  function closeQuotePanel() {
+    const overlay = document.getElementById('quote-panel-overlay');
+    if (overlay) overlay.style.display = 'none';
   }
 
   // 发送询价通知

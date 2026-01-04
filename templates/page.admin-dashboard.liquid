@@ -977,15 +977,37 @@
           return f ? f.value : '';
         };
         
+        // 优先使用后端返回的 Shopify 文件 URL / ID
+        const shopifyFileUrl = field('Shopify文件URL');
+        const shopifyFileId = field('Shopify文件ID');
         const invoiceUrl = field('invoice_url');
         const fileName = field('text') || '未知文件';
         
-        console.log('文件信息:', { invoiceUrl, fileName });
+        console.log('文件信息:', { shopifyFileUrl, shopifyFileId, invoiceUrl, fileName });
         console.log('完整订单信息:', order);
         
-        // 注意：由于 Metaobject 字段限制，文件数据可能无法直接存储
-        // 优先尝试从购物车获取文件数据
-        
+        // 1) 优先使用 Shopify 文件 URL
+        if (shopifyFileUrl && (shopifyFileUrl.startsWith('http://') || shopifyFileUrl.startsWith('https://'))) {
+          console.log('使用 Shopify 文件 URL 下载:', shopifyFileUrl);
+          const link = document.createElement('a');
+          link.href = shopifyFileUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          return;
+        }
+
+        // 2) 有文件ID则走后端下载 API（Shopify Files）
+        if (shopifyFileId) {
+          const dlUrl = `${QUOTES_API_BASE.replace(/\\/api$/, '')}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
+          console.log('使用 Shopify 文件ID 下载:', dlUrl);
+          window.open(dlUrl, '_blank');
+          return;
+        }
+
+        // 3) 兼容旧逻辑：使用 metaobject invoice_url
         if (invoiceUrl && (invoiceUrl.startsWith('http://') || invoiceUrl.startsWith('https://')) && !invoiceUrl.includes('placeholder.com')) {
           // 有效的 URL，直接下载
           console.log('使用 HTTP URL 下载:', invoiceUrl);

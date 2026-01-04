@@ -12,17 +12,17 @@
     {% render 'account-drawer' %}
   {% endif %}
 
-  {% if settings.cart_type == 'drawer' and template.name != 'cart' %}
-    {% render 'cart-drawer' %}
-  {% else %}
-    <a
-      href="{{ routes.cart_url }}"
-      class="header-actions__action action__cart"
-      aria-label="{{ 'accessibility.cart' | t }} {{ 'accessibility.cart_count' | t }}: {{ cart.item_count }}"
-    >
-      {% render 'cart-icon-component' %}
-    </a>
-  {% endif %}
+  {%- comment -%}
+    将购物车入口改为“我的询价”页面，避免显示购物车。
+    如果需要恢复购物车，将 href 改回 routes.cart_url，并还原 drawer 逻辑。
+  {%- endcomment -%}
+  <a
+    href="/pages/my-quotes"
+    class="header-actions__action action__cart"
+    aria-label="{{ 'accessibility.cart' | t }} {{ 'accessibility.cart_count' | t }}: {{ cart.item_count }}"
+  >
+    {% render 'cart-icon-component' %}
+  </a>
 </header-actions>
 
 {% stylesheet %}
