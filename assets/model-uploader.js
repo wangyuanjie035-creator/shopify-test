@@ -581,16 +581,12 @@
   }
 
   // 显示文件列表
-  function displayFileList() {
+ function displayFileList() {
     console.log('displayFileList called, fileManager.files.size:', fileManager.files.size);
-    console.log('fileList:', fileList, 'fileItems:', fileItems);
     
     if (!fileList || !fileItems) {
       console.error('fileList or fileItems not found! Retrying in 100ms...');
-      // 如果DOM元素不存在，延迟重试
-      setTimeout(() => {
-        displayFileList();
-      }, 100);
+      setTimeout(() => { displayFileList(); }, 100);
       return;
     }
     
@@ -606,87 +602,75 @@
     fileList.style.display = 'block';
     fileItems.innerHTML = '';
     
-    // 显示所有文件：3D文件独立显示，2D文件显示在对应3D文件下方，孤儿2D文件也显示
+    const processed2DFileIds = new Set();
+    
+    // 显示3D文件及其关联的2D文件
     fileManager.files.forEach((fileData, fileId) => {
       if (is3DFile(fileData.file.name)) {
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         
-        // 查找对应的2D文件
-        const corresponding2DFiles = getCorresponding2DFiles(fileId);
-        console.log(`3D文件 ${fileData.file.name} 对应的2D文件:`, corresponding2DFiles.map(f => f.name));
-        const has2DIndicator = corresponding2DFiles.length > 0 ? 
-          `<div class="file-2d-indicator">📄 已上传2D图纸: ${corresponding2DFiles.map(f => f.name).join(', ')}</div>` : '';
-        
         const checkedAttr = selectedFileIds.has(fileId) ? 'checked' : '';
-        fileItem.innerHTML = `
-            <div class="file-info">
-          <label style="display:flex;align-items:center;gap:8px;">
-            <input type="checkbox" ${checkedAttr} onchange="toggleFileSelection(${fileId}, this.checked)">
-            <span class="file-name">${fileData.file.name}</span>
-          </label>
-          <span class="file-size">${formatFileSize(fileData.file.size)}</span>
-          ${fileData.dimensions ? `<span class="file-dimensions">${fileData.dimensions.width.toFixed(1)} x ${fileData.dimensions.height.toFixed(1)} x ${fileData.dimensions.depth.toFixed(1)} mm</span>` : ''}
-      </div>
-            <div class="file-actions">
-          <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
-          <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
-          </div>
-          ${has2DIndicator}
-        `;
-        console.log('Created file item for:', fileData.file.name);
-        fileItems.appendChild(fileItem);
-        console.log('Appended file item to fileItems, fileItems.children.length:', fileItems.children.length);
-      }
-    });
-    
-    // 显示孤儿2D文件（没有对应3D文件的2D文件）
-    fileManager.files.forEach((fileData, fileId) => {
-      if (is2DFile(fileData.file.name)) {
-        // 检查是否有对应的3D文件
-        let hasCorresponding3D = false;
-        for (const [otherFileId, otherFileData] of fileManager.files) {
-          if (otherFileId !== fileId && is3DFile(otherFileData.file.name)) {
-            const corresponding2DFiles = getCorresponding2DFiles(otherFileId);
-            if (corresponding2DFiles.some(f => f.id === fileId)) {
-              hasCorresponding3D = true;
-              break;
-            }
-          }
+        
+        let associatedFilesHTML = '';
+        const corresponding2DFiles = getCorresponding2DFiles(fileId);
+        if (corresponding2DFiles.length > 0) {
+          associatedFilesHTML = '<div class="associated-2d-files">';
+          corresponding2DFiles.forEach(twoDFile => {
+            associatedFilesHTML += `<div class="file-2d-indicator">📄 关联2D图纸: ${twoDFile.name}</div>`;
+            processed2DFileIds.add(twoDFile.id);
+          });
+          associatedFilesHTML += '</div>';
         }
         
-        // 如果没有对应的3D文件，显示这个孤儿2D文件
-        if (!hasCorresponding3D) {
-          console.log(`孤儿2D文件: ${fileData.file.name}`);
-          const fileItem = document.createElement('div');
-          fileItem.className = 'file-item orphan-2d';
-          fileItem.innerHTML = `
-            <div class="file-info">
+        fileItem.innerHTML = `
+          <div class="file-info">
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" ${checkedAttr} onchange="toggleFileSelection(${fileId}, this.checked)">
               <span class="file-name">${fileData.file.name}</span>
-              <span class="file-size">${formatFileSize(fileData.file.size)}</span>
-              <span class="file-type">2D图纸</span>
-            </div>
-            <div class="file-actions">
-              <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
-              <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
-            </div>
-            <div class="file-warning">⚠️ 此2D文件缺少对应的3D文件</div>
-          `;
-          fileItems.appendChild(fileItem);
-        }
+            </label>
+            <span class="file-size">${formatFileSize(fileData.file.size)}</span>
+            ${fileData.dimensions ? `<span class="file-dimensions">${fileData.dimensions.width.toFixed(1)} x ${fileData.dimensions.height.toFixed(1)} x ${fileData.dimensions.depth.toFixed(1)} mm</span>` : ''}
+          </div>
+          <div class="file-actions">
+            <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
+            <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
+          </div>
+          ${associatedFilesHTML}
+        `;
+        fileItems.appendChild(fileItem);
       }
     });
     
-    console.log('displayFileList completed, final fileItems.children.length:', fileItems.children.length);
-    console.log('fileList.style.display:', fileList.style.display);
-    console.log('fileList.offsetHeight:', fileList.offsetHeight);
-
-    // 更新提交按钮状态（基于勾选及校验）
+    // 显示孤儿2D文件
+    fileManager.files.forEach((fileData, fileId) => {
+      if (is2DFile(fileData.file.name) && !processed2DFileIds.has(fileId)) {
+        console.log(`孤儿2D文件: ${fileData.file.name}`);
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item orphan-2d';
+        fileItem.innerHTML = `
+          <div class="file-info">
+            <span class="file-name">${fileData.file.name}</span>
+            <span class="file-size">${formatFileSize(fileData.file.size)}</span>
+            <span class="file-type">2D图纸</span>
+          </div>
+          <div class="file-actions">
+            <button type="button" class="file-select" onclick="selectFile(${fileId})" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
+            <button type="button" class="file-delete" onclick="removeFile(${fileId})">删除</button>
+          </div>
+          <div class="file-warning">⚠️ 此2D文件缺少对应的3D文件</div>
+        `;
+        fileItems.appendChild(fileItem);
+      }
+    });
+    
+    console.log('displayFileList completed');
     updateBulkButtonState();
   }
 
   // 获取对应3D文件的2D文件列表
   function getCorresponding2DFiles(threeDFileId) {
+    // ... (function content remains unchanged) ...
     const threeDFileData = fileManager.files.get(threeDFileId);
     if (!threeDFileData || !is3DFile(threeDFileData.file.name)) {
       return [];
@@ -703,7 +687,6 @@
           .replace(/[_\-\s]+/g, '')
           .replace(/[^\u4e00-\u9fa5a-z0-9]/g, '');
         
-        // 更精确的文件关联匹配
         if (twoDBaseName === baseName || 
             (baseName.length > 3 && twoDBaseName.includes(baseName)) || 
             (twoDBaseName.length > 3 && baseName.includes(twoDBaseName)) ||
@@ -719,7 +702,6 @@
     
     return corresponding2DFiles;
   }
-
   // 选择文件
   function selectFile(fileId) {
     if (!fileManager.files.has(fileId)) return;
@@ -740,36 +722,43 @@
     displayFileList();
   }
 
-  // 切换复选框选择
+ // 切换复选框选择
   function toggleFileSelection(fileId, checked) {
     if (!fileManager.files.has(fileId)) return;
     const fileData = fileManager.files.get(fileId);
-    if (!is3DFile(fileData.file.name)) return; // 仅3D参与询价
+    if (!is3DFile(fileData.file.name)) return; // 仅从3D文件触发
+    const corresponding2DFiles = getCorresponding2DFiles(fileId);
     if (checked) {
       selectedFileIds.add(fileId);
+      corresponding2DFiles.forEach(file => selectedFileIds.add(file.id));
     } else {
       selectedFileIds.delete(fileId);
+      corresponding2DFiles.forEach(file => selectedFileIds.delete(file.id));
     }
     updateBulkButtonState();
   }
   window.toggleFileSelection = toggleFileSelection;
 
-  function updateBulkButtonState() {
-    // 统一控制 addToCartBtn
+   function updateBulkButtonState() {
     if (!addToCartBtn) return;
-    const noneSelected = selectedFileIds.size === 0;
+    const selected3DFileIds = Array.from(selectedFileIds).filter(id => {
+        const fd = fileManager.files.get(id);
+        return fd && is3DFile(fd.file.name);
+    });
+
+    const noneSelected = selected3DFileIds.length === 0;
     addToCartBtn.disabled = true;
     if (noneSelected) return;
-    // 验证所有选择的文件都满足条件
-    const invalid = Array.from(selectedFileIds).some((id) => {
-      const fd = fileManager.files.get(id);
-      if (!fd) return true;
-      if (!is3DFile(fd.file.name)) return true; // 只允许3D
-      const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
-      return need2D && !hasCorresponding2DFile(id);
+    const invalid = selected3DFileIds.some((id) => {
+        const fd = fileManager.files.get(id);
+        if (!fd) return true;
+        
+        const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
+        return need2D && !hasCorresponding2DFile(id);
     });
     addToCartBtn.disabled = invalid;
   }
+
 
   async function handleBulkAddToCart() {
     // 已废弃独立按钮逻辑，改为走 handleAddToCart
@@ -2495,31 +2484,36 @@
     });
     
     // 拦截原生的添加到购物车按钮点击
-    document.addEventListener('click', function(event) {
+  document.addEventListener('click', function(event) {
       const button = event.target.closest('button');
       if (button && button.type === 'submit' && button.form && button.form.action && button.form.action.includes('/cart/add') && button.form.id !== 'add-form') {
         console.log('Intercepting native add to cart button click');
         
-        // 检查是否有验证错误
-        if (fileManager.files.size === 0) {
-          event.preventDefault();
-          showError('请先上传3D模型文件');
-          return false;
+        // 总是阻止原生按钮的默认行为
+        event.preventDefault();
+
+        const selected3DFileIds = Array.from(selectedFileIds).filter(id => {
+            const fd = fileManager.files.get(id);
+            return fd && is3DFile(fd.file.name);
+        });
+
+        // 检查是否勾选了任何3D文件
+        if (selected3DFileIds.length === 0) {
+          showError('请先勾选需要询价的3D模型文件');
+          return;
         }
         
-        // 检查当前文件是否有错误
-        const currentFileData = fileManager.files.get(fileManager.currentFileId);
-        if (currentFileData) {
-          validateFileConfiguration(currentFileData);
-          
-          // 如果按钮被禁用，说明有错误
-          const addToCartBtn = document.getElementById('add-to-cart');
-          if (addToCartBtn && addToCartBtn.disabled) {
-            event.preventDefault();
-            console.log('Blocked native button click due to validation errors');
-            return false;
-          }
+        // 检查我们的自定义按钮的状态，它的状态反映了批量验证的结果
+        const addToCartBtn = document.getElementById('add-to-cart');
+        if (addToCartBtn && addToCartBtn.disabled) {
+          showError('您选择的文件不满足要求，请检查（例如，缺少必要的2D图纸）');
+          console.log('Blocked native button click due to validation errors on selected files');
+          return;
         }
+
+        // 如果验证通过，则执行我们自己的提交逻辑
+        console.log('Validation passed, triggering custom submission via native button.');
+        submitToDraftOrder();
       }
     });
   }
