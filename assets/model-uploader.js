@@ -1,4 +1,3 @@
-//assets/model-uploader.js
 /**
  * 3D Model Uploader - Complete Multi-File Version
  * 支持多文件独立管理、ZIP解压、完整错误反馈
@@ -1134,16 +1133,17 @@
     
     // 准备线上项目（Line Items）
     const lineItems = [];
-    const allFiles = [];
-
-    // 处理每个选中的文件（支持多文件）
+    
+    // 处理每个选中的文件
     for (const fileId of selectedFileIds) {
       const fileData = fileManager.files.get(fileId);
       if (!fileData) continue;
       
       console.log('处理文件:', fileData.file.name);
+      
+      // 获取文件配置
       const config = fileData.config || {};
-
+      
       // 上传文件到本地存储
       let realFileId = null;
       try {
@@ -1159,28 +1159,12 @@
         console.error('❌ 文件上传失败:', uploadError);
         realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       }
-
-      // 收集所有文件信息（用于后端批量处理）
-      const reader = new FileReader();
-      const fileBase64 = await new Promise((resolve) => {
-        reader.onload = () => resolve(reader.result);
-        reader.readAsDataURL(fileData.file);
-      });
-
-      allFiles.push({
-        fileName: fileData.file.name,
-        fileType: fileData.file.type,
-        fileSize: fileData.file.size,
-        fileId: realFileId,
-        fileData: fileBase64,
-        config: config
-      });
-
+      
       // 创建线上项目（使用虚拟产品）
       lineItems.push({
         title: fileData.file.name,
         quantity: parseInt(config.quantity || 1),
-        price: 0,
+        price: 0, // 初始价格为0，等待报价
         requires_shipping: false,
         customAttributes: [
           { key: 'Order Type', value: '3D Model Quote' },
@@ -1204,35 +1188,40 @@
     }
     
     console.log('准备创建草稿订单，线上项目:', lineItems);
-
+    
+    // 调用Vercel API创建草稿订单
+    const API_BASE = 'https://shopify-13s4.vercel.app/api';
+    
+    // 获取文件数据
+    const fileUrl = lineItems.length > 0 ? await getFirstFileDataUrl() : null;
+    console.log('文件数据长度:', fileUrl ? fileUrl.length : 0);
+    
     // 获取第一个文件的名称
     const firstFileId = Array.from(selectedFileIds)[0];
     const firstFileName = firstFileId ? fileManager.files.get(firstFileId)?.file?.name : null;
-
+    
     // 验证客户信息
     if (!customerInfo || !customerInfo.email || !customerInfo.name) {
       console.error('❌ 客户信息不完整:', customerInfo);
       throw new Error('客户信息不完整，请确保已正确登录或输入客户信息');
     }
-
-    // 请求体包含所有文件
+    
     const requestBody = {
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
       fileName: firstFileName || 'model.stl',
       lineItems: lineItems,
-      allFiles: allFiles // 新增：所有文件信息
+      fileUrl: fileUrl
     };
-
+    
     console.log('📤 请求体准备完成:', {
       customerName: requestBody.customerName,
       customerEmail: requestBody.customerEmail,
       fileName: requestBody.fileName,
       lineItemsCount: requestBody.lineItems.length,
-      allFilesCount: requestBody.allFiles.length
+      hasFileData: !!requestBody.fileUrl
     });
-
-    const API_BASE = 'https://shopify-13s4.vercel.app/api';
+    
     const response = await fetch(`${API_BASE}/submit-quote-real`, {
       method: 'POST',
       headers: {
@@ -1241,23 +1230,23 @@
       },
       body: JSON.stringify(requestBody)
     });
-
+    
     console.log('API响应状态:', response.status);
-
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ 创建草稿订单失败:', response.status, errorText);
       throw new Error(`创建草稿订单失败: ${response.status} - ${errorText}`);
     }
-
+    
     const result = await response.json();
     console.log('✅ 草稿订单创建成功:', result);
-
+    
     if (!result.draftOrderId) {
       console.error('❌ API返回结果中没有draftOrderId:', result);
       throw new Error('API返回结果中没有draftOrderId');
     }
-
+    
     return result.draftOrderId;
   }
 

@@ -24,10 +24,15 @@
  * }
  */
 
+function parseAdminList() {
+  const raw = process.env.ADMIN_EMAIL_WHITELIST || 'issac.yu@sainstore.com';
+  return raw.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+}
+
 export default async function handler(req, res) {
   // 设置CORS头 - 允许Shopify域名
   res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
-  res.setHeader('Access-Control-Allow-Methods', 'DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
@@ -36,13 +41,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 只接受DELETE请求
-  if (req.method !== 'DELETE') {
+  // 只接受POST/DELETE请求
+  if (req.method !== 'DELETE' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { draftOrderId } = req.body;
+    const { draftOrderId, email, admin } = req.body || {};
+    const requesterEmail = (email || '').trim().toLowerCase();
+    const adminList = parseAdminList();
+    const isAdminRequest = ['1','true','yes'].includes((admin || '').toString().toLowerCase()) && adminList.includes(requesterEmail);
 
     if (!draftOrderId) {
       return res.status(400).json({ 
@@ -65,6 +73,41 @@ export default async function handler(req, res) {
         deletedId: draftOrderId,
         note: '请配置SHOP/SHOPIFY_STORE_DOMAIN和ADMIN_TOKEN/SHOPIFY_ACCESS_TOKEN环境变量'
       });
+    }
+
+    // 如果不是管理员，需要校验订单归属邮箱
+    if (!isAdminRequest) {
+      const fetchQuery = `
+        query($id: ID!) {
+          draftOrder(id: $id) {
+            id
+            email
+          }
+        }
+      `;
+      const fetchResp = await fetch(`https://${storeDomain}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken
+        },
+        body: JSON.stringify({
+          query: fetchQuery,
+          variables: { id: draftOrderId }
+        })
+      });
+      const fetchJson = await fetchResp.json();
+      if (fetchJson.errors) {
+        throw new Error(fetchJson.errors[0].message);
+      }
+      const ownerEmail = (fetchJson?.data?.draftOrder?.email || '').toLowerCase();
+      if (!ownerEmail || ownerEmail !== requesterEmail) {
+        return res.status(403).json({
+          success: false,
+          error: 'forbidden',
+          message: '仅允许删除本人未支付的询价单'
+        });
+      }
     }
 
     // GraphQL删除查询
