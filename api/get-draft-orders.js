@@ -1,4 +1,4 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { setCorsHeaders } from './cors-config.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
     const { status, limit = 50, email, admin } = req.query;
 
     // 管理员白名单（逗号分隔，环境变量 ADMIN_EMAIL_WHITELIST）
-    const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com')
+    const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonthan.wang@gmail.com')
       .split(',')
       .map(e => e.trim().toLowerCase())
       .filter(Boolean);

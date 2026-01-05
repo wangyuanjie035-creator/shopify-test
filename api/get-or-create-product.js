@@ -1,6 +1,6 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
+const { setCorsHeaders } = require('./cors-config');
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   // 设置CORS头
   setCorsHeaders(res);
 
@@ -162,4 +162,4 @@ export default async function handler(req, res) {
       message: '无法获取或创建产品'
     });
   }
-}
+};

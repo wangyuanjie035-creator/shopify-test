@@ -1,4 +1,4 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { setCorsHeaders } from './cors-config.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════

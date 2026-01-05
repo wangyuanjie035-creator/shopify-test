@@ -1,4 +1,3 @@
-// api/test-cors.js
 /**
  * 测试CORS配置API
  * 用于验证CORS头是否正确设置
