@@ -728,15 +728,18 @@
  function toggleFileSelection(fileId, isSelected) {
   console.log(`Toggling selection for file ${fileId} to ${isSelected}`);
   
-  const file = fileManager.files.get(fileId);
+   // FIX: Ensure fileId is a number
+  const numericFileId = parseInt(fileId, 10);
+  
+  const file = fileManager.files.get(numericFileId);
   if (!file) {
-    console.error(`File with ID ${fileId} not found.`);
+    console.error(`File with ID ${numericFileId} not found.`);
     return;
   }
 
   // FIX: Ensure we get an array of IDs, not objects
-  const associatedIds = getCorresponding2DFiles(fileId).map(f => f.id);
-  const allIdsToToggle = [fileId, ...associatedIds];
+  const associatedIds = getCorresponding2DFiles(numericFileId).map(f => f.id);
+  const allIdsToToggle = [numericFileId, ...associatedIds];
 
   allIdsToToggle.forEach(id => {
     if (isSelected) {
