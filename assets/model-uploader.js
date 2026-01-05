@@ -1133,7 +1133,8 @@
     
     // 准备线上项目（Line Items）
     const lineItems = [];
-    
+    const files = []; // 新增：收集所有文件上传结果
+
     // 处理每个选中的文件
     for (const fileId of selectedFileIds) {
       const fileData = fileManager.files.get(fileId);
@@ -1160,6 +1161,25 @@
         realFileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       }
       
+      // 新增：收集文件信息（保留所有原有参数）
+      files.push({
+        fileName: fileData.file.name,
+        fileSize: fileData.file.size,
+        fileId: realFileId,
+        config: {
+          quantity: config.quantity,
+          material: config.material,
+          finish: config.finish,
+          precision: config.precision,
+          tolerance: config.tolerance,
+          roughness: config.roughness,
+          hasThread: config.hasThread,
+          hasAssembly: config.hasAssembly,
+          scale: config.scale,
+          note: config.note
+        }
+      });
+
       // 创建线上项目（使用虚拟产品）
       lineItems.push({
         title: fileData.file.name,
@@ -1192,7 +1212,7 @@
     // 调用Vercel API创建草稿订单
     const API_BASE = 'https://shopify-13s4.vercel.app/api';
     
-    // 获取文件数据
+    // 获取文件数据（原有逻辑保留）
     const fileUrl = lineItems.length > 0 ? await getFirstFileDataUrl() : null;
     console.log('文件数据长度:', fileUrl ? fileUrl.length : 0);
     
@@ -1206,12 +1226,14 @@
       throw new Error('客户信息不完整，请确保已正确登录或输入客户信息');
     }
     
+    // 新增：将 files 传给后端
     const requestBody = {
       customerName: customerInfo.name,
       customerEmail: customerInfo.email,
       fileName: firstFileName || 'model.stl',
       lineItems: lineItems,
-      fileUrl: fileUrl
+      fileUrl: fileUrl,
+      files: files // 新增字段
     };
     
     console.log('📤 请求体准备完成:', {
@@ -1219,7 +1241,8 @@
       customerEmail: requestBody.customerEmail,
       fileName: requestBody.fileName,
       lineItemsCount: requestBody.lineItems.length,
-      hasFileData: !!requestBody.fileUrl
+      hasFileData: !!requestBody.fileUrl,
+      filesCount: files.length
     });
     
     const response = await fetch(`${API_BASE}/submit-quote-real`, {
