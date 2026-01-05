@@ -1,3 +1,4 @@
+//assets/model-uploader.js
 /**
  * 3D Model Uploader - Complete Multi-File Version
  * 支持多文件独立管理、ZIP解压、完整错误反馈
@@ -34,7 +35,7 @@
   let hasThreadRadios, hasAssemblyRadios, toleranceSelect, roughnessSelect, noteTextarea;
   let precisionSelect, charCount;
    // 批量（选择集）——使用同一个"立即询价"按钮
-  let selectedFileIds = [];
+   let selectedFileIds = new Set();
   let bulkAddBtn = null; // 不再渲染独立按钮，仅保留占位以兼容旧代码
 
   // 初始化
@@ -1058,7 +1059,7 @@
 
   // 处理询价提交（统一：勾选为前提，提交所勾选文件到草稿订单）
   function handleAddToCart() {
-    if (selectedFileIds.size === 0) {
+      if (selectedFileIds.size === 0) {
       showError('请先勾选要询价的3D文件');
       updateBulkButtonState();
       return;
@@ -1141,7 +1142,7 @@
     console.log('📝 创建草稿订单...');
     console.log('选中的文件ID:', selectedFileIds);
 
-    if (selectedFileIds.length === 0) {
+    if (selectedFileIds.size  === 0) {
       showError('请至少选择一个文件进行询价');
       return;
     }
@@ -1156,9 +1157,9 @@
     let hasMainFile = false;
 
     for (const fileId of selectedFileIds) {
-      const file = fileManager.files.get(fileId);
+      const file = fileManager.files.get(parseInt(fileId));
 
-      if (!file || !file.name) {
+      if (!file || !file.name || !file.file) {
         console.warn(`在 fileManager 中找不到 ID 为 ${fileId} 的文件或文件信息不完整，已跳过。`);
         continue;
       }

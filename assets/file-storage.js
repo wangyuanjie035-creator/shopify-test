@@ -1,3 +1,4 @@
+//assets/file-storage.js
 if (typeof window.FileStorageManager === 'undefined') {
   /**
    * 文件存储管理器
