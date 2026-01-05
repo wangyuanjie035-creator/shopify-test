@@ -593,7 +593,7 @@
     if (fileManager.files.size === 0) {
       console.log('No files, hiding file list');
       fileList.style.display = 'none';
-      selectedFileIds.clear();
+      selectedFileIds = []; // FIX: Clear array correctly
       updateBulkButtonState();
       return;
     }
@@ -610,7 +610,7 @@
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
         
-        const checkedAttr = selectedFileIds.has(fileId) ? 'checked' : '';
+        onst checkedAttr = selectedFileIds.includes(fileId) ? 'checked' : ''; // FIX: Use .includes() for arrays
         
         let associatedFilesHTML = '';
         const corresponding2DFiles = getCorresponding2DFiles(fileId);
@@ -795,7 +795,10 @@
     fileManager.files.delete(fileId);
 
     // 从批量选择中移除
-    selectedFileIds.delete(fileId);
+    const index = selectedFileIds.indexOf(fileId); // FIX: Use indexOf and splice for arrays
+    if (index > -1) {
+      selectedFileIds.splice(index, 1);
+    }
 
     // 如果删除的是当前文件，选择另一个文件
     if (fileId === fileManager.currentFileId) {
