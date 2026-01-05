@@ -33,8 +33,8 @@
   let addToCartBtn, form;
   let hasThreadRadios, hasAssemblyRadios, toleranceSelect, roughnessSelect, noteTextarea;
   let precisionSelect, charCount;
-  // 批量（选择集）——使用同一个"立即询价"按钮
-  const selectedFileIds = new Set();
+   // 批量（选择集）——使用同一个"立即询价"按钮
+  let selectedFileIds = [];
   let bulkAddBtn = null; // 不再渲染独立按钮，仅保留占位以兼容旧代码
 
   // 初始化
@@ -723,20 +723,35 @@
   }
 
  // 切换复选框选择
-  function toggleFileSelection(fileId, checked) {
-    if (!fileManager.files.has(fileId)) return;
-    const fileData = fileManager.files.get(fileId);
-    if (!is3DFile(fileData.file.name)) return; // 仅从3D文件触发
-    const corresponding2DFiles = getCorresponding2DFiles(fileId);
-    if (checked) {
-      selectedFileIds.add(fileId);
-      corresponding2DFiles.forEach(file => selectedFileIds.add(file.id));
-    } else {
-      selectedFileIds.delete(fileId);
-      corresponding2DFiles.forEach(file => selectedFileIds.delete(file.id));
-    }
-    updateBulkButtonState();
+ function toggleFileSelection(fileId, isSelected) {
+  console.log(`Toggling selection for file ${fileId} to ${isSelected}`);
+  
+  const file = fileManager.getFileById(fileId);
+  if (!file) {
+    console.error(`File with ID ${fileId} not found.`);
+    return;
   }
+
+  const associatedIds = getCorresponding2DFiles(fileId);
+  const allIdsToToggle = [fileId, ...associatedIds];
+
+  allIdsToToggle.forEach(id => {
+    if (isSelected) {
+      if (!selectedFileIds.includes(id)) {
+        selectedFileIds.push(id);
+      }
+    } else {
+      const index = selectedFileIds.indexOf(id);
+      if (index > -1) {
+        selectedFileIds.splice(index, 1);
+      }
+    }
+  });
+
+  console.log('Updated selectedFileIds:', selectedFileIds);
+  updateBulkButtonState();
+}
+
   window.toggleFileSelection = toggleFileSelection;
 
    function updateBulkButtonState() {
