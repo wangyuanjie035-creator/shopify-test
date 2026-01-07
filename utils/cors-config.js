@@ -22,14 +22,24 @@ export function setCorsHeaders(req, res) {
   }
 
   // 回显允许的来源，默认店铺域名
+  // 确保总是设置 Access-Control-Allow-Origin 头
   const allow = allowedOrigins.has(origin) ? origin : 'https://sain-pdc-test.myshopify.com';
   res.setHeader('Access-Control-Allow-Origin', allow);
   res.setHeader('Vary', 'Origin');
 
   // 允许的动词与头
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,PATCH,DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // 调试日志（仅在开发环境）
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('CORS Headers Set:', {
+      origin: origin || '(empty)',
+      allow: allow,
+      method: req.method
+    });
+  }
 }
 
