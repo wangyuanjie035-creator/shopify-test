@@ -6,7 +6,7 @@
 
 在浏览器中直接访问（不受CORS限制）：
 ```
-https://shopify-v587.vercel.app/api/test-cors
+https://shopify-v587.vercel.app/test-cors
 ```
 
 **期望结果**: 返回JSON，包含CORS配置信息
@@ -30,7 +30,7 @@ curl -X OPTIONS \
   -H "Origin: https://sain-pdc-test.myshopify.com" \
   -H "Access-Control-Request-Method: POST" \
   -v \
-  https://shopify-v587.vercel.app/api/store-file-real 2>&1 | grep -i "access-control"
+  https://shopify-v587.vercel.app/store-file-real 2>&1 | grep -i "access-control"
 ```
 
 **期望输出**:
@@ -179,7 +179,7 @@ curl -X OPTIONS \
    curl -X OPTIONS \
      -H "Origin: https://sain-pdc-test.myshopify.com" \
      -v \
-     https://shopify-v587.vercel.app/api/store-file-real
+     https://shopify-v587.vercel.app/store-file-real
    ```
 
 ---
@@ -208,7 +208,7 @@ curl -X OPTIONS \
    - 查找错误信息
 
 2. **测试其他API端点**:
-   - `https://shopify-v587.vercel.app/api/test-cors`
+   - `https://shopify-v587.vercel.app/test-cors`
    - 如果这个可以工作，说明问题在特定函数
 
 3. **检查Vercel状态**:

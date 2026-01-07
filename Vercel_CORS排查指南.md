@@ -4,7 +4,7 @@
 
 更换Vercel域名后出现CORS错误：
 ```
-Access to fetch at 'https://shopify-v587.vercel.app/api/store-file-real' 
+Access to fetch at 'https://shopify-v587.vercel.app/store-file-real' 
 from origin 'https://sain-pdc-test.myshopify.com' 
 has been blocked by CORS policy: 
 Response to preflight request doesn't pass access control check: 
@@ -55,7 +55,7 @@ curl -X OPTIONS \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: Content-Type" \
   -v \
-  https://shopify-v587.vercel.app/api/store-file-real
+  https://shopify-v587.vercel.app/store-file-real
 ```
 
 **期望输出**:
@@ -75,7 +75,7 @@ curl -X OPTIONS \
 
 ```javascript
 // 测试OPTIONS请求
-fetch('https://shopify-v587.vercel.app/api/store-file-real', {
+fetch('https://shopify-v587.vercel.app/store-file-real', {
   method: 'OPTIONS',
   headers: {
     'Origin': 'https://sain-pdc-test.myshopify.com',
@@ -151,7 +151,7 @@ fetch('https://shopify-v587.vercel.app/api/store-file-real', {
 
 创建一个测试端点来验证CORS配置：
 
-访问: `https://shopify-v587.vercel.app/api/test-cors`
+访问: `https://shopify-v587.vercel.app/test-cors`
 
 如果测试端点返回正确的CORS头，但 `store-file-real` 不返回，说明问题在特定函数中。
 
@@ -254,7 +254,7 @@ export default async function handler(req, res) {
 ```bash
 #!/bin/bash
 
-API_URL="https://shopify-v587.vercel.app/api"
+API_URL="https://shopify-v587.vercel.app"
 ORIGIN="https://sain-pdc-test.myshopify.com"
 
 echo "测试 OPTIONS 请求..."

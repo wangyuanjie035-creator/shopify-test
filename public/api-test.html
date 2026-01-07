@@ -160,7 +160,7 @@
       <h2>1. 配置API基础URL</h2>
       <div class="input-group">
         <label>API Base URL:</label>
-        <input type="text" id="apiBase" value="https://shopify-v587.vercel.app/api" placeholder="https://your-domain.vercel.app/api">
+        <input type="text" id="apiBase" value="https://shopify-v587.vercel.app" placeholder="https://your-domain.vercel.app">
       </div>
       <button onclick="updateApiBase()">更新URL</button>
     </div>
@@ -195,7 +195,7 @@
   </div>
   
   <script>
-    let apiBase = 'https://shopify-v587.vercel.app/api';
+    let apiBase = 'https://shopify-v587.vercel.app';
     
     function updateApiBase() {
       apiBase = document.getElementById('apiBase').value.replace(/\/$/, '');

@@ -39,12 +39,12 @@
 
 1. **访问测试页面**（部署后）:
    ```
-   https://shopify-v587.vercel.app/api-test.html
+   https://shopify-v587.vercel.app-test.html
    ```
 
 2. **或者使用API端点**:
    ```
-   https://shopify-v587.vercel.app/api/list-files
+   https://shopify-v587.vercel.app/list-files
    ```
 
 这会返回所有部署的API文件列表。
@@ -113,7 +113,7 @@ vercel inspect <project-name>
 
 在浏览器中访问：
 ```
-https://shopify-v587.vercel.app/api/test-cors
+https://shopify-v587.vercel.app/test-cors
 ```
 
 **期望结果**: 返回JSON数据
@@ -139,20 +139,20 @@ https://shopify-v587.vercel.app/api/test-cors
 
 ```bash
 # 测试GET请求
-curl https://shopify-v587.vercel.app/api/test-cors
+curl https://shopify-v587.vercel.app/test-cors
 
 # 测试OPTIONS请求（CORS预检）
 curl -X OPTIONS \
   -H "Origin: https://sain-pdc-test.myshopify.com" \
   -v \
-  https://shopify-v587.vercel.app/api/store-file-real
+  https://shopify-v587.vercel.app/store-file-real
 ```
 
 ---
 
 ### 测试3: 使用测试工具页面
 
-1. 访问: `https://shopify-v587.vercel.app/api-test.html`
+1. 访问: `https://shopify-v587.vercel.app-test.html`
 2. 点击 "获取文件列表" 按钮
 3. 查看返回的文件列表
 
@@ -175,7 +175,7 @@ curl -X OPTIONS \
 
 **A**: 
 1. 在Vercel Dashboard → Functions 中查看
-2. 使用 `https://shopify-v587.vercel.app/api/list-files` 获取列表
+2. 使用 `https://shopify-v587.vercel.app/list-files` 获取列表
 3. 测试API端点是否响应
 
 ---
@@ -206,7 +206,7 @@ curl -X OPTIONS \
 - [ ] 找到项目
 - [ ] 查看最新部署状态（应该是 "Ready"）
 - [ ] 查看 Functions 标签，确认API文件列表
-- [ ] 测试 `https://shopify-v587.vercel.app/api/test-cors`
+- [ ] 测试 `https://shopify-v587.vercel.app/test-cors`
 - [ ] 使用测试工具查看文件列表
 - [ ] 检查环境变量是否设置
 

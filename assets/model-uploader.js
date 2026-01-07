@@ -1683,7 +1683,7 @@
   async function submitToDraftOrder() {
     console.log('📝 开始创建草稿订单（每个3D文件独立订单）...');
 
-    const API_BASE = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api').replace(/\/$/, '');
+    const API_BASE = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app').replace(/\/$/, '');
 
     // 1. 获取客户信息
     const customerInfo = await getCustomerInfo();
@@ -1978,7 +1978,7 @@
 
   // 提交询价到草稿订单（保留用于管理端功能）
   async function submitQuoteToDraftOrder() {
-    const API_BASE = 'https://shopify-v587.vercel.app/api';  // 请修改为你的实际 Vercel 域名
+    const API_BASE = 'https://shopify-v587.vercel.app';  // 请修改为你的实际 Vercel 域名
     
     console.log('开始提交询价到草稿订单...');
     console.log('API_BASE:', API_BASE);
@@ -2424,7 +2424,7 @@
 
     // 追加：同步到 Vercel 后端（Metaobject: quote）
     try {
-      const base = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app/api').replace(/\/$/, '');
+      const base = (window.QUOTES_API_BASE || 'https://shopify-v587.vercel.app').replace(/\/$/, '');
       
       // 确保 API 基础地址正确
       if (!window.QUOTES_API_BASE) {

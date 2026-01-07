@@ -16,16 +16,16 @@
 
 ```bash
 # 测试list-files API
-curl https://shopify-v587.vercel.app/api/list-files
+curl https://shopify-v587.vercel.app/list-files
 
 # 测试test-cors API
-curl https://shopify-v587.vercel.app/api/test-cors
+curl https://shopify-v587.vercel.app/test-cors
 
 # 测试store-file-real的OPTIONS请求
 curl -X OPTIONS \
   -H "Origin: https://sain-pdc-test.myshopify.com" \
   -v \
-  https://shopify-v587.vercel.app/api/store-file-real
+  https://shopify-v587.vercel.app/store-file-real
 ```
 
 **如果返回404**: 说明文件未部署，需要提交代码
@@ -86,7 +86,7 @@ git push
 
 ```bash
 # 等待部署完成后测试
-curl https://shopify-v587.vercel.app/api/list-files
+curl https://shopify-v587.vercel.app/list-files
 ```
 
 ---
@@ -97,17 +97,17 @@ curl https://shopify-v587.vercel.app/api/list-files
 
 ```bash
 # 测试所有API端点
-curl https://shopify-v587.vercel.app/api/test-cors
-curl https://shopify-v587.vercel.app/api/list-files
-curl https://shopify-v587.vercel.app/api/store-file-real
+curl https://shopify-v587.vercel.app/test-cors
+curl https://shopify-v587.vercel.app/list-files
+curl https://shopify-v587.vercel.app/store-file-real
 ```
 
 ### 方法2: 使用浏览器直接访问（GET请求）
 
 在浏览器地址栏输入：
 ```
-https://shopify-v587.vercel.app/api/test-cors
-https://shopify-v587.vercel.app/api/list-files
+https://shopify-v587.vercel.app/test-cors
+https://shopify-v587.vercel.app/list-files
 ```
 
 **注意**: 只能测试GET请求，POST请求会失败
@@ -160,14 +160,14 @@ https://shopify-v587.vercel.app/api/list-files
 echo "测试API部署状态..."
 echo ""
 echo "1. 测试 test-cors:"
-curl -s https://shopify-v587.vercel.app/api/test-cors | head -5
+curl -s https://shopify-v587.vercel.app/test-cors | head -5
 echo ""
 echo "2. 测试 list-files:"
-curl -s https://shopify-v587.vercel.app/api/list-files | head -5
+curl -s https://shopify-v587.vercel.app/list-files | head -5
 echo ""
 echo "3. 测试 store-file-real (OPTIONS):"
 curl -s -X OPTIONS -H "Origin: https://sain-pdc-test.myshopify.com" \
-  https://shopify-v587.vercel.app/api/store-file-real -I | grep -i "access-control"
+  https://shopify-v587.vercel.app/store-file-real -I | grep -i "access-control"
 ```
 
 ---

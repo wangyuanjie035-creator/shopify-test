@@ -192,7 +192,7 @@ SHOPIFY_ACCESS_TOKEN=shpat_xxxxxxxxxxxxxxxx
 - `templates/page.quote-request.liquid` (第 348 行)
 
 ```javascript
-const API_BASE = 'https://your-vercel-domain.vercel.app/api';
+const API_BASE = 'https://your-vercel-domain.vercel.app';
 ```
 
 ---
