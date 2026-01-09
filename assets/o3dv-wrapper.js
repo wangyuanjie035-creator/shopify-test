@@ -30,6 +30,16 @@ class O3DVWrapper {
       return;
     }
 
+    // 检查是否有占位符，如果有且没有模型，延迟创建查看器容器
+    const existingPlaceholder = this.container.querySelector('.viewer-placeholder');
+    if (existingPlaceholder && !this.currentModel) {
+      console.log('O3DVWrapper: Placeholder found, will create viewer container when file is loaded');
+      // 不立即创建容器，保持占位符显示
+      // 但需要等待库加载，以便在加载文件时可以立即使用
+      this.waitForO3DV();
+      return;
+    }
+
     // 创建查看器容器
     this.createViewerContainer();
     
@@ -38,12 +48,7 @@ class O3DVWrapper {
   }
 
   createViewerContainer() {
-    // 先隐藏原有的占位符
-    const existingPlaceholder = this.container.querySelector('.viewer-placeholder');
-    if (existingPlaceholder) {
-      existingPlaceholder.style.display = 'none';
-    }
-    
+    // 创建查看器容器
     this.container.innerHTML = `
       <div class="o3dv-container" style="width: ${this.options.width}px; height: ${this.options.height}px; border: 1px solid #ddd; position: relative;">
         <div class="o3dv-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none;">
@@ -174,9 +179,39 @@ class O3DVWrapper {
   }
 
   loadSTPFile(file) {
+    // 如果查看器容器还未创建（因为有占位符），现在创建它
+    if (!this.container.querySelector('.o3dv-container')) {
+      console.log('O3DVWrapper: Creating viewer container now that file is being loaded');
+      this.createViewerContainer();
+      
+      // 如果库已加载但查看器未初始化，立即初始化
+      if (typeof OV !== 'undefined' && !this.isInitialized) {
+        this.initializeViewer();
+      } else if (typeof OV === 'undefined') {
+        // 如果库未加载，等待加载
+        this.waitForO3DV();
+      }
+    }
+    
+    // 等待查看器初始化完成
     if (!this.isInitialized || !this.viewer) {
-      console.error('O3DVWrapper: Viewer not initialized');
-      return Promise.reject(new Error('查看器未初始化'));
+      // 如果查看器还未初始化，等待一段时间后重试
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const maxAttempts = 100; // 最多等待10秒 (100 * 100ms)
+        
+        const checkInterval = setInterval(() => {
+          attempts++;
+          if (this.isInitialized && this.viewer) {
+            clearInterval(checkInterval);
+            // 重新调用以加载文件
+            this.loadSTPFile(file).then(resolve).catch(reject);
+          } else if (attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+            reject(new Error('查看器初始化超时'));
+          }
+        }, 100);
+      });
     }
 
     return new Promise((resolve, reject) => {
@@ -185,6 +220,12 @@ class O3DVWrapper {
         const fileSizeMB = file.size / (1024 * 1024);
         if (fileSizeMB > 50) {
           console.warn(`Large file detected: ${fileSizeMB.toFixed(1)}MB. This may take longer to load or fail due to memory constraints.`);
+        }
+        
+        // 隐藏占位符（如果存在）
+        const placeholder = this.container.querySelector('.viewer-placeholder');
+        if (placeholder) {
+          placeholder.style.display = 'none';
         }
         
         // 显示加载状态
