@@ -33,11 +33,7 @@
  * }
  */
 
-import { setCorsHeaders } from '../utils/cors-config.js';
-import { draftOrderService } from '../services/draft-order-service.js';
-import { authService } from '../utils/auth-service.js';
-import { shopifyClient } from '../utils/shopify-client.js';
-import { handleError, createSuccessResponse, HttpStatus, ErrorCodes } from '../utils/error-handler.js';
+import { setCorsHeaders, draftOrderService, authService, shopifyClient, handleError, createSuccessResponse, HttpStatus, ErrorCodes } from './_lib.js';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'https://shopify-v587.vercel.app';
 

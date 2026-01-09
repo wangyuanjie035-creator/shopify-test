@@ -1,6 +1,6 @@
 import { Blob } from 'buffer';
 import FormData from 'form-data';
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { setCorsHeaders } from './_lib.js';
 
 // 统一判断文件类别，Shopify fileCreate 只接受枚举类型
 // 注意：STEP/STP 在 Shopify 不被当作 MODEL_3D 支持，按 FILE 处理

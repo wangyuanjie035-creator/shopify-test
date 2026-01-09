@@ -1,24 +1,17 @@
-// 直接设置CORS头
-function setCorsHeaders(res) {
-  // 可按需追加更多允许的来源
-  res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-}
+import { setCorsHeaders, HttpStatus } from './_lib.js';
 
 export default async function handler(req, res) {
   // 设置CORS头
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
 
   // 处理OPTIONS预检请求
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(HttpStatus.NO_CONTENT).end();
   }
 
   // 只允许POST请求
   if (req.method !== 'POST') {
-    return res.status(405).json({ 
+    return res.status(HttpStatus.METHOD_NOT_ALLOWED).json({ 
       success: false, 
       error: 'Method not allowed' 
     });
@@ -28,7 +21,7 @@ export default async function handler(req, res) {
     const { draftOrderId } = req.body || {};
     
     if (!draftOrderId) {
-      return res.status(400).json({
+      return res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         error: 'Draft Order ID is required'
       });
@@ -90,7 +83,7 @@ export default async function handler(req, res) {
     // 如果订单已支付，返回成功并附带信息，避免前端阻塞
     const paidError = userErrors.find(e => e.message?.includes('has been paid'));
     if (paidError) {
-      return res.status(200).json({
+      return res.status(HttpStatus.OK).json({
         success: true,
         message: '订单已支付或已完成，无需重复支付',
         draftOrder: completedDraftOrder || null
@@ -105,7 +98,7 @@ export default async function handler(req, res) {
       throw new Error(`完成草稿订单失败: 响应为空或无draftOrder`);
     }
 
-    return res.status(200).json({
+    return res.status(HttpStatus.OK).json({
       success: true,
       draftOrder: {
         id: completedDraftOrder.id,
@@ -121,7 +114,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('❌ 完成草稿订单失败:', error);
     
-    return res.status(500).json({
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       success: false,
       error: error.message,
       message: '完成草稿订单失败'

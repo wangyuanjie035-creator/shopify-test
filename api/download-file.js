@@ -2,9 +2,7 @@
 // 用于下载已上传的文件
 const FILE_METAOBJECT_TYPE = 'uploaded_file';
 
-import { setCorsHeaders } from '../utils/cors-config.js';
-import { shopifyClient } from '../utils/shopify-client.js';
-import { HttpStatus, ErrorCodes } from '../utils/error-handler.js';
+import { setCorsHeaders, shopifyClient, HttpStatus, ErrorCodes } from './_lib.js';
 
 export default async function handler(req, res) {
   setCorsHeaders(req, res);

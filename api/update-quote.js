@@ -30,10 +30,7 @@
  * }
  */
 
-import { setCorsHeaders } from '../utils/cors-config.js';
-import { draftOrderService } from '../services/draft-order-service.js';
-import { shopifyClient } from '../utils/shopify-client.js';
-import { handleError, createSuccessResponse, HttpStatus, ErrorCodes } from '../utils/error-handler.js';
+import { setCorsHeaders, draftOrderService, shopifyClient, handleError, createSuccessResponse, HttpStatus, ErrorCodes } from './_lib.js';
 
 // ─────────────────────────────────────────────────────────────
 // 主处理函数

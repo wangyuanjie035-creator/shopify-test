@@ -1,8 +1,8 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
+import { setCorsHeaders } from './_lib.js';
 
 export default async function handler(req, res) {
   // 设置CORS头
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
 
   // 只允许POST请求
   if (req.method !== 'POST') {

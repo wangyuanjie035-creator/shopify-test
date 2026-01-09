@@ -1,7 +1,4 @@
-import { setCorsHeaders } from '../utils/cors-config.js';
-import { shopifyClient } from '../utils/shopify-client.js';
-import { draftOrderService } from '../services/draft-order-service.js';
-import { handleError, createSuccessResponse, HttpStatus, ErrorCodes } from '../utils/error-handler.js';
+import { setCorsHeaders, shopifyClient, draftOrderService, handleError, createSuccessResponse, HttpStatus, ErrorCodes } from './_lib.js';
 
 /**
  * ═══════════════════════════════════════════════════════════════

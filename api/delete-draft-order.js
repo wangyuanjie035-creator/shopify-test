@@ -26,11 +26,7 @@
  * }
  */
 
-import { setCorsHeaders } from '../utils/cors-config.js';
-import { draftOrderService } from '../services/draft-order-service.js';
-import { authService } from '../utils/auth-service.js';
-import { shopifyClient } from '../utils/shopify-client.js';
-import { handleError, createSuccessResponse, HttpStatus } from '../utils/error-handler.js';
+import { setCorsHeaders, draftOrderService, authService, shopifyClient, handleError, createSuccessResponse, HttpStatus } from './_lib.js';
 
 export default async function handler(req, res) {
   // 设置CORS头
