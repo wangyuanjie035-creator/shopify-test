@@ -54,43 +54,82 @@ class DraftOrderService {
    * @returns {Promise<object>} { draftOrders, total, pending, quoted }
    */
   async getDraftOrders({ requesterEmail, isAdmin = false, status, limit = 50 } = {}) {
-    // 构建搜索查询
-    const search = isAdmin
-      ? (status && status !== 'all' ? `status:${status}` : '')
-      : `email:"${requesterEmail}"`;
+    try {
+      // 构建搜索查询
+      const search = isAdmin
+        ? (status && status !== 'all' ? `status:${status}` : '')
+        : `email:"${requesterEmail}"`;
 
-    // 获取 Draft Orders
-    const draftOrders = await shopifyClient.getDraftOrders({
-      first: limit,
-      search
-    });
+      console.log('🔍 查询 Draft Orders:', { search, limit, isAdmin });
 
-    // 格式化数据
-    const formattedOrders = draftOrders.map(order => this.formatDraftOrder(order));
+      // 获取 Draft Orders
+      const draftOrders = await shopifyClient.getDraftOrders({
+        first: limit,
+        search
+      });
 
-    // 按邮箱兜底过滤（管理员除外）
-    let filteredOrders = isAdmin
-      ? formattedOrders
-      : formattedOrders.filter(order => 
-          authService.normalizeEmail(order.email) === authService.normalizeEmail(requesterEmail)
-        );
+      console.log('✅ 获取到 Draft Orders 数量:', draftOrders?.length || 0);
 
-    // 状态过滤
-    if (status && status !== 'all') {
-      filteredOrders = filteredOrders.filter(order => order.status === status);
+      if (!Array.isArray(draftOrders)) {
+        console.error('❌ draftOrders 不是数组:', typeof draftOrders);
+        return {
+          draftOrders: [],
+          total: 0,
+          pending: 0,
+          quoted: 0
+        };
+      }
+
+      // 格式化数据，过滤掉 null 值
+      const formattedOrders = draftOrders
+        .map(order => {
+          try {
+            return this.formatDraftOrder(order);
+          } catch (error) {
+            console.error('格式化订单失败:', error, order);
+            return null;
+          }
+        })
+        .filter(order => order !== null);
+
+      console.log('✅ 格式化后的订单数量:', formattedOrders.length);
+
+      // 按邮箱兜底过滤（管理员除外）
+      let filteredOrders = isAdmin
+        ? formattedOrders
+        : formattedOrders.filter(order => {
+            const orderEmail = authService.normalizeEmail(order.email);
+            const requesterEmailNormalized = authService.normalizeEmail(requesterEmail);
+            return orderEmail === requesterEmailNormalized;
+          });
+
+      // 状态过滤
+      if (status && status !== 'all') {
+        filteredOrders = filteredOrders.filter(order => order.status === status);
+      }
+
+      // 计算统计信息（基于所有订单，而不是过滤后的）
+      const total = formattedOrders.length;
+      const pending = formattedOrders.filter(o => o.status === 'pending').length;
+      const quoted = formattedOrders.filter(o => o.status === 'quoted').length;
+
+      console.log('✅ 最终返回:', { 
+        filtered: filteredOrders.length, 
+        total, 
+        pending, 
+        quoted 
+      });
+
+      return {
+        draftOrders: filteredOrders,
+        total,
+        pending,
+        quoted
+      };
+    } catch (error) {
+      console.error('❌ getDraftOrders 失败:', error);
+      throw error;
     }
-
-    // 计算统计信息
-    const total = formattedOrders.length;
-    const pending = formattedOrders.filter(o => o.status === 'pending').length;
-    const quoted = formattedOrders.filter(o => o.status === 'quoted').length;
-
-    return {
-      draftOrders: filteredOrders,
-      total,
-      pending,
-      quoted
-    };
   }
 
   /**
@@ -257,57 +296,70 @@ class DraftOrderService {
    * @returns {object} 格式化后的数据
    */
   formatDraftOrder(draftOrder) {
-    if (!draftOrder) return null;
-
-    // 处理 lineItems：可能是 edges 格式（从 API）或数组格式（已处理）
-    let lineItemsArray = [];
-    if (draftOrder.lineItems?.edges) {
-      lineItemsArray = draftOrder.lineItems.edges.map(edge => edge.node);
-    } else if (Array.isArray(draftOrder.lineItems)) {
-      lineItemsArray = draftOrder.lineItems;
+    if (!draftOrder) {
+      console.warn('formatDraftOrder: draftOrder 为 null 或 undefined');
+      return null;
     }
 
-    // 从第一个 lineItem 的 customAttributes 中提取信息
-    const firstLineItem = lineItemsArray[0] || {};
-    const customAttributes = firstLineItem.customAttributes || [];
-    
-    const getAttribute = (key) => {
-      const attr = customAttributes.find(a => a.key === key);
-      return attr ? attr.value : null;
-    };
+    try {
+      // 处理 lineItems：可能是 edges 格式（从 API）或数组格式（已处理）
+      let lineItemsArray = [];
+      if (draftOrder.lineItems?.edges && Array.isArray(draftOrder.lineItems.edges)) {
+        // GraphQL edges 格式
+        lineItemsArray = draftOrder.lineItems.edges.map(edge => edge.node).filter(Boolean);
+      } else if (Array.isArray(draftOrder.lineItems)) {
+        // 已经是数组格式
+        lineItemsArray = draftOrder.lineItems;
+      }
 
-    // 提取状态
-    let orderStatus = 'pending';
-    const statusAttr = getAttribute('状态');
-    if (statusAttr === '已报价') {
-      orderStatus = 'quoted';
+      // 从第一个 lineItem 的 customAttributes 中提取信息
+      const firstLineItem = lineItemsArray[0] || {};
+      const customAttributes = Array.isArray(firstLineItem.customAttributes) 
+        ? firstLineItem.customAttributes 
+        : [];
+
+      const getAttribute = (key) => {
+        const attr = customAttributes.find(a => a && a.key === key);
+        return attr ? attr.value : null;
+      };
+
+      // 提取状态
+      let orderStatus = 'pending';
+      const statusAttr = getAttribute('状态');
+      if (statusAttr === '已报价') {
+        orderStatus = 'quoted';
+      }
+
+      // 提取文件信息
+      const fileId = getAttribute('文件ID');
+      const fileData = getAttribute('文件数据');
+
+      return {
+        id: draftOrder.id || null,
+        name: draftOrder.name || null,
+        email: draftOrder.email || null,
+        status: orderStatus,
+        totalPrice: draftOrder.totalPrice || '0.00',
+        createdAt: draftOrder.createdAt || null,
+        updatedAt: draftOrder.updatedAt || null,
+        invoiceUrl: draftOrder.invoiceUrl || 'data:stored',
+        fileId,
+        fileData,
+        note: draftOrder.note || null,
+        lineItems: lineItemsArray.map(item => ({
+          id: item.id || null,
+          title: item.title || '',
+          quantity: item.quantity || 1,
+          originalUnitPrice: item.originalUnitPrice || '0.00',
+          price: item.originalUnitPrice || '0.00',
+          customAttributes: Array.isArray(item.customAttributes) ? item.customAttributes : []
+        }))
+      };
+    } catch (error) {
+      console.error('formatDraftOrder 格式化错误:', error);
+      console.error('draftOrder 数据:', JSON.stringify(draftOrder, null, 2));
+      throw new Error(`格式化 Draft Order 失败: ${error.message}`);
     }
-
-    // 提取文件信息
-    const fileId = getAttribute('文件ID');
-    const fileData = getAttribute('文件数据');
-
-    return {
-      id: draftOrder.id,
-      name: draftOrder.name,
-      email: draftOrder.email,
-      status: orderStatus,
-      totalPrice: draftOrder.totalPrice,
-      createdAt: draftOrder.createdAt,
-      updatedAt: draftOrder.updatedAt,
-      invoiceUrl: draftOrder.invoiceUrl || 'data:stored',
-      fileId,
-      fileData,
-      note: draftOrder.note,
-      lineItems: lineItemsArray.map(item => ({
-        id: item.id,
-        title: item.title,
-        quantity: item.quantity,
-        originalUnitPrice: item.originalUnitPrice,
-        price: item.originalUnitPrice,
-        customAttributes: item.customAttributes || []
-      }))
-    };
   }
 
   /**

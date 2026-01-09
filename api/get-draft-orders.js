@@ -43,11 +43,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('开始获取Draft Orders列表...');
+    console.log('📥 开始获取Draft Orders列表...', {
+      method: req.method,
+      query: req.query,
+      url: req.url
+    });
 
     // 检查 Shopify 配置
     if (!shopifyClient.isConfigured()) {
-      console.log('环境变量未配置，返回模拟数据');
+      console.log('⚠️ 环境变量未配置，返回模拟数据');
       
       // 返回模拟数据
       return res.status(HttpStatus.OK).json({
@@ -98,9 +102,16 @@ export default async function handler(req, res) {
     // 提取认证信息
     const { email: requesterEmail, isAdmin: isAdminRequest } = authService.extractAuthFromRequest(req);
 
+    console.log('🔐 认证信息:', {
+      requesterEmail,
+      isAdmin: isAdminRequest,
+      hasEmail: !!requesterEmail
+    });
+
     // 验证邮箱
     const emailValidation = authService.validateEmail(requesterEmail);
     if (!emailValidation.valid) {
+      console.warn('❌ 邮箱验证失败:', emailValidation);
       return res.status(HttpStatus.UNAUTHORIZED).json({
         success: false,
         error: emailValidation.error,
@@ -121,12 +132,21 @@ export default async function handler(req, res) {
       });
     }
 
+    console.log('🔄 调用 draftOrderService.getDraftOrders...');
+
     // 获取 Draft Orders 列表
     const result = await draftOrderService.getDraftOrders({
       requesterEmail,
       isAdmin: isAdminRequest,
       status,
       limit: parseInt(limit, 10) || 50
+    });
+
+    console.log('✅ draftOrderService 返回成功:', {
+      count: result.draftOrders?.length || 0,
+      total: result.total,
+      pending: result.pending,
+      quoted: result.quoted
     });
 
     // 返回成功响应
@@ -138,6 +158,8 @@ export default async function handler(req, res) {
     return res.status(response.status).json(response.body);
 
   } catch (error) {
+    console.error('❌ 获取Draft Orders异常:', error);
+    console.error('错误堆栈:', error.stack);
     return handleError(error, res, { context: '获取Draft Orders' });
   }
 }
