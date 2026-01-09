@@ -1301,6 +1301,13 @@ function renderOrdersList(orders) {
   document.getElementById('quote-detail').style.display = 'none';
   document.getElementById('loading-state').style.display = 'none';
   
+  // 按创建时间排序：新的订单在上面，旧的订单在下面
+  const sortedOrders = [...orders].sort((a, b) => {
+    const dateA = new Date(a.createdAt || 0);
+    const dateB = new Date(b.createdAt || 0);
+    return dateB - dateA; // 降序排序，最新的在前
+  });
+  
   // 显示订单列表容器
   let ordersListContainer = document.getElementById('orders-list-container');
   if (!ordersListContainer) {
@@ -1324,7 +1331,7 @@ function renderOrdersList(orders) {
       <p>点击订单查看详情</p>
     </div>
     <div class="orders-list">
-      ${orders.map(order => createOrderCard(order)).join('')}
+      ${sortedOrders.map(order => createOrderCard(order)).join('')}
     </div>
   `;
   
