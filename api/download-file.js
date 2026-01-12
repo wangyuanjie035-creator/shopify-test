@@ -263,43 +263,53 @@ async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
 
     console.log('文件URL获取成功:', fileUrl);
 
-    // 代理下载文件，以便设置正确的文件名
-    // 如果提供了文件名，使用它；否则从 URL 中提取
-    let finalFileName = requestedFileName;
-    if (!finalFileName && fileUrl) {
-      // 尝试从 URL 中提取文件名
-      const urlMatch = fileUrl.match(/\/([^\/\?]+)(\?|$)/);
-      if (urlMatch) {
-        finalFileName = decodeURIComponent(urlMatch[1]);
-        // 移除可能的查询参数
-        finalFileName = finalFileName.split('?')[0];
-      }
-    }
-    if (!finalFileName) {
-      finalFileName = 'download.bin';
-    }
+    // 通过我们的服务端中转下载，以便自定义文件名
+    const fileResp = await fetch(fileUrl);
 
-    // 获取文件内容
-    const fileResponse = await fetch(fileUrl);
-    if (!fileResponse.ok) {
-      return res.status(fileResponse.status).json({ 
-        error: '文件下载失败', 
-        message: `HTTP ${fileResponse.status}` 
+    if (!fileResp.ok) {
+      console.error('从 Shopify CDN 获取文件失败:', {
+        status: fileResp.status,
+        statusText: fileResp.statusText,
+      });
+      return res.status(502).json({
+        error: '文件下载失败',
+        message: `获取文件内容失败: ${fileResp.status} ${fileResp.statusText}`,
       });
     }
 
-    const fileBuffer = await fileResponse.arrayBuffer();
-    const buffer = Buffer.from(fileBuffer);
+    // 读取文件内容到 Buffer
+    const arrayBuffer = await fileResp.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // 设置响应头，确保文件名正确
-    const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream';
+    // 内容类型：优先使用远端的 Content-Type
+    const contentType =
+      fileResp.headers.get('content-type') || 'application/octet-stream';
     res.setHeader('Content-Type', contentType);
-    
-    // 使用 RFC 5987 编码处理包含非 ASCII 字符的文件名
-    const encodedFileName = encodeURIComponent(finalFileName);
-    res.setHeader('Content-Disposition', `attachment; filename="${finalFileName.replace(/[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodedFileName}`);
+
+    // 处理下载文件名：优先使用我们传入的原始文件名，其次从 URL 推断
+    let downloadFileName = fileName;
+    if (!downloadFileName || typeof downloadFileName !== 'string') {
+      try {
+        const urlObj = new URL(fileUrl);
+        const pathname = urlObj.pathname || '';
+        const lastSegment = pathname.split('/').filter(Boolean).pop() || '';
+        // 去掉类似  ?v=xxx 之前的部分已经在 pathname 中处理，这里再尝试去掉可能附带的 hash 前缀
+        downloadFileName = lastSegment || 'download';
+      } catch (e) {
+        console.warn('从文件URL解析文件名失败，使用默认文件名:', e.message);
+        downloadFileName = 'download';
+      }
+    }
+
+    // RFC 5987 编码，兼容中文等非 ASCII 字符
+    const encodedFileName = encodeURIComponent(downloadFileName);
+    const safeFileName = downloadFileName.replace(/[^\x20-\x7E]/g, '_');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodedFileName}`
+    );
+
     res.setHeader('Content-Length', buffer.length);
-    
     return res.status(200).send(buffer);
 
   } catch (error) {
