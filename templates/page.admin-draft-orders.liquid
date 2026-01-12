@@ -1181,13 +1181,7 @@
           continue;
         }
 
-        // 在文件名上追加 _3D / _2D 标记
-        const dotIndex = fileName.lastIndexOf('.');
-        if (dotIndex > 0) {
-          fileName = fileName.slice(0, dotIndex) + `_${fileTypeLabel}` + fileName.slice(dotIndex);
-        } else {
-          fileName = fileName + `_${fileTypeLabel}`;
-        }
+        // 保留原始文件名，不添加 _2D 或 _3D 后缀
 
         console.log('准备下载行项目文件:', {
           title: item.title,
