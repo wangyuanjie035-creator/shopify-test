@@ -14,6 +14,19 @@
     >
       <div class="cart-page__title">
         {%- content_for 'block', id: 'cart-page-title', type: '_cart-title' %}
+        
+        {%- comment -%}
+          添加"我的询价"页面链接
+        {%- endcomment -%}
+        <div class="cart-page__quote-link" style="margin-top: var(--margin-md);">
+          <a 
+            href="/pages/my-quotes" 
+            class="button button--secondary"
+            style="text-decoration: none;"
+          >
+            查看我的询价
+          </a>
+        </div>
       </div>
 
       <div class="cart-page__items">

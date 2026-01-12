@@ -13,16 +13,9 @@
   {% endif %}
 
   {%- comment -%}
-    将购物车入口改为“我的询价”页面，避免显示购物车。
-    如果需要恢复购物车，将 href 改回 routes.cart_url，并还原 drawer 逻辑。
+    恢复购物车抽屉功能，点击购物车图标打开侧边栏购物车
   {%- endcomment -%}
-  <a
-    href="/pages/my-quotes"
-    class="header-actions__action action__cart"
-    aria-label="{{ 'accessibility.cart' | t }} {{ 'accessibility.cart_count' | t }}: {{ cart.item_count }}"
-  >
-    {% render 'cart-icon-component' %}
-  </a>
+  {% render 'cart-drawer' %}
 </header-actions>
 
 {% stylesheet %}
