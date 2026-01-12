@@ -638,7 +638,6 @@
     </div>
     
     <div class="quote-actions">
-      <button class="btn btn-secondary" onclick="downloadAllFiles()">📥 下载文件</button>
       <a href="/pages/model-uploader" class="btn btn-secondary">继续上传</a>
       <button id="place-order-btn" class="btn btn-primary" onclick="placeOrder()">立即下单</button>
     </div>
@@ -1520,68 +1519,6 @@ async function retryCreateOrder() {
   }
 }
 
-// 下载所有文件
-async function downloadAllFiles() {
-  if (!window.currentDraftOrder || !window.currentDraftOrder.lineItems) {
-    alert('没有可下载的文件。');
-    return;
-  }
-
-  console.log('开始下载文件...');
-  
-  for (const item of window.currentDraftOrder.lineItems) {
-    const fileIdAttr = item.customAttributes.find(attr => attr.key === '文件ID');
-    const fileNameAttr = item.customAttributes.find(attr => attr.key === '文件');
-    
-    if (fileIdAttr && fileIdAttr.value) {
-      const fileId = fileIdAttr.value;
-      const fileName = fileNameAttr ? fileNameAttr.value : item.title;
-      
-      console.log('下载文件:', fileName, 'ID:', fileId);
-      
-      try {
-        // 检查是否是本地存储的文件
-        if (fileId.startsWith('file_') && window.fileStorageManager) {
-          const fileInfo = window.fileStorageManager.getFileInfo(fileId);
-          if (fileInfo && fileInfo.url) {
-            // 从本地存储下载
-            window.fileStorageManager.downloadFile(fileInfo.url, fileName);
-            console.log('✅ 本地文件下载完成:', fileName);
-          } else {
-            console.warn('⚠️ 本地文件不存在:', fileId);
-            alert(`文件 "${fileName}" 在本地存储中不存在，可能已被清理。`);
-          }
-        } else {
-          // 尝试从API下载
-          const response = await fetch(`${API_BASE}/download-file?id=${encodeURIComponent(fileId)}`);
-          if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-            console.log('✅ API文件下载完成:', fileName);
-          } else {
-            throw new Error(`下载失败: ${response.status}`);
-          }
-        }
-      } catch (error) {
-        console.error(`下载文件 ${fileName} 失败:`, error);
-        alert(`下载文件 "${fileName}" 失败: ${error.message}`);
-      }
-    } else {
-      console.warn('文件没有文件ID:', item.title);
-      alert(`文件 "${item.title}" 没有找到文件ID，无法下载。`);
-    }
-  }
-  
-  console.log('文件下载完成');
-}
 
 // 在 JavaScript 中添加邮箱验证，确保只显示当前客户的订单
 function filterOrdersByCustomerEmail() {

@@ -39,7 +39,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { id, shopifyFileId, fileName: requestedFileName } = req.query;
+    const { id, shopifyFileId, shopifyFileUrl, fileName: requestedFileName } = req.query;
+    
+    // 如果提供了shopifyFileUrl，直接代理下载
+    if (shopifyFileUrl) {
+      return await handleShopifyFileUrlDownload(req, res, shopifyFileUrl, requestedFileName);
+    }
     
     // 如果提供了shopifyFileId，则通过Shopify Files下载
     if (shopifyFileId) {
@@ -156,6 +161,59 @@ export default async function handler(req, res) {
   }
   }
 
+// 处理Shopify文件URL直接下载
+async function handleShopifyFileUrlDownload(req, res, shopifyFileUrl, requestedFileName) {
+  try {
+    console.log('开始通过URL下载Shopify文件:', { shopifyFileUrl, requestedFileName });
+
+    // 获取文件内容
+    const fileResponse = await fetch(shopifyFileUrl);
+    if (!fileResponse.ok) {
+      return res.status(fileResponse.status).json({ 
+        error: '文件下载失败', 
+        message: `HTTP ${fileResponse.status}` 
+      });
+    }
+
+    const fileBuffer = await fileResponse.arrayBuffer();
+    const buffer = Buffer.from(fileBuffer);
+
+    // 确定文件名
+    let finalFileName = requestedFileName;
+    if (!finalFileName && shopifyFileUrl) {
+      // 尝试从 URL 中提取文件名
+      const urlMatch = shopifyFileUrl.match(/\/([^\/\?]+)(\?|$)/);
+      if (urlMatch) {
+        finalFileName = decodeURIComponent(urlMatch[1]);
+        // 移除可能的查询参数
+        finalFileName = finalFileName.split('?')[0];
+      }
+    }
+    if (!finalFileName) {
+      finalFileName = 'download.bin';
+    }
+
+    // 设置响应头，确保文件名正确
+    const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    
+    // 使用 RFC 5987 编码处理包含非 ASCII 字符的文件名
+    const encodedFileName = encodeURIComponent(finalFileName);
+    res.setHeader('Content-Disposition', `attachment; filename="${finalFileName.replace(/[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodedFileName}`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    console.log('文件下载成功，文件名:', finalFileName);
+    return res.status(200).send(buffer);
+
+  } catch (error) {
+    console.error('Shopify文件URL下载失败:', error);
+    return res.status(500).json({
+      error: '文件下载失败',
+      message: error.message
+    });
+  }
+}
+
 // 处理Shopify文件下载
 async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
   try {
@@ -205,10 +263,44 @@ async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
 
     console.log('文件URL获取成功:', fileUrl);
 
-    // 直接重定向到 Shopify CDN URL（不设置 Content-Disposition，让 CDN 处理）
-    // 因为重定向后浏览器会跟随到 CDN，我们的头会被覆盖
-    res.writeHead(302, { Location: fileUrl });
-    return res.end();
+    // 代理下载文件，以便设置正确的文件名
+    // 如果提供了文件名，使用它；否则从 URL 中提取
+    let finalFileName = requestedFileName;
+    if (!finalFileName && fileUrl) {
+      // 尝试从 URL 中提取文件名
+      const urlMatch = fileUrl.match(/\/([^\/\?]+)(\?|$)/);
+      if (urlMatch) {
+        finalFileName = decodeURIComponent(urlMatch[1]);
+        // 移除可能的查询参数
+        finalFileName = finalFileName.split('?')[0];
+      }
+    }
+    if (!finalFileName) {
+      finalFileName = 'download.bin';
+    }
+
+    // 获取文件内容
+    const fileResponse = await fetch(fileUrl);
+    if (!fileResponse.ok) {
+      return res.status(fileResponse.status).json({ 
+        error: '文件下载失败', 
+        message: `HTTP ${fileResponse.status}` 
+      });
+    }
+
+    const fileBuffer = await fileResponse.arrayBuffer();
+    const buffer = Buffer.from(fileBuffer);
+
+    // 设置响应头，确保文件名正确
+    const contentType = fileResponse.headers.get('content-type') || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    
+    // 使用 RFC 5987 编码处理包含非 ASCII 字符的文件名
+    const encodedFileName = encodeURIComponent(finalFileName);
+    res.setHeader('Content-Disposition', `attachment; filename="${finalFileName.replace(/[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodedFileName}`);
+    res.setHeader('Content-Length', buffer.length);
+    
+    return res.status(200).send(buffer);
 
   } catch (error) {
     console.error('Shopify文件下载失败:', error);
