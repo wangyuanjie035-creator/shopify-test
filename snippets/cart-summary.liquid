@@ -158,6 +158,17 @@
     {% endif %}
   </button>
 
+  {%- comment -%}
+    添加"我的询价"页面链接
+  {%- endcomment -%}
+  <a 
+    href="/pages/my-quotes" 
+    class="button button--secondary cart__quote-link-button"
+    style="width: 100%; text-align: center; text-decoration: none; margin-top: var(--margin-md);"
+  >
+    查看我的询价
+  </a>
+
   {% if additional_checkout_buttons and settings.show_accelerated_checkout_buttons %}
     <div class="additional-checkout-buttons additional-checkout-buttons--vertical">
       {{ content_for_additional_checkout_buttons }}

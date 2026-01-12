@@ -26,6 +26,17 @@
     >
       {{ 'actions.continue_shopping' | t }}
     </a>
+    
+    {%- comment -%}
+      在空购物车状态下也显示"我的询价"链接
+    {%- endcomment -%}
+    <a
+      class="button button--secondary cart-items__quote-link"
+      href="/pages/my-quotes"
+      style="margin-top: var(--margin-md); text-decoration: none;"
+    >
+      查看我的询价
+    </a>
   {%- else -%}
     <span
       class="visually-hidden"
