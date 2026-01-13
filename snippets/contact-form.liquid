@@ -52,7 +52,8 @@
         class="visually-hidden"
         for="ContactForm-name"
       >
-        {{- 'blocks.contact_form.name' | t -}}
+        Name
+        <span aria-hidden="true">*</span>
       </label>
       <input
         type="text"
@@ -61,14 +62,15 @@
         autocomplete="name"
         name="contact[name]"
         value="{% if form.name %}{{ form.name }}{% elsif customer %}{{ customer.name }}{% endif %}"
-        placeholder="{{ 'blocks.contact_form.name' | t }}"
+        placeholder="Name*"
+        aria-required="true"
       >
 
       <label
         class="visually-hidden"
         for="ContactForm-email"
       >
-        {{- 'blocks.contact_form.email' | t -}}
+        Email
         <span aria-hidden="true">*</span></label
       >
       <input
@@ -85,39 +87,60 @@
           aria-invalid="true"
           aria-describedby="ContactForm-email-error"
         {% endif %}
-        placeholder="{{ 'blocks.contact_form.email' | t }}"
+        placeholder="Email *"
       >
     </div>
 
-    <label
-      class="visually-hidden"
-      for="ContactForm-phone"
-    >
-      {{- 'blocks.contact_form.phone' | t -}}
-    </label>
-    <input
-      type="tel"
-      id="ContactForm-phone"
-      class="contact-form__input"
-      autocomplete="tel"
-      name="contact[phone]"
-      pattern="[0-9\-]*"
-      value="{% if form.phone %}{{ form.phone }}{% elsif customer %}{{ customer.phone }}{% endif %}"
-      placeholder="{{ 'blocks.contact_form.phone' | t }}"
-    >
+    <div class="contact-form__form-row">
+      <label
+        class="visually-hidden"
+        for="ContactForm-order-number"
+      >
+        Order number
+      </label>
+      <input
+        type="text"
+        id="ContactForm-order-number"
+        class="contact-form__input"
+        name="contact[order_number]"
+        value="{% if form.order_number %}{{ form.order_number }}{% endif %}"
+        placeholder="Order number"
+      >
+
+      <label
+        class="visually-hidden"
+        for="ContactForm-phone"
+      >
+        Phone number
+        <span aria-hidden="true">*</span>
+      </label>
+      <input
+        type="tel"
+        id="ContactForm-phone"
+        class="contact-form__input"
+        autocomplete="tel"
+        name="contact[phone]"
+        pattern="[0-9\-]*"
+        value="{% if form.phone %}{{ form.phone }}{% elsif customer %}{{ customer.phone }}{% endif %}"
+        placeholder="Phone number*"
+        aria-required="true"
+      >
+    </div>
 
     <label
       class="visually-hidden"
       for="ContactForm-body"
     >
       {{- 'blocks.contact_form.comment' | t -}}
+      <span aria-hidden="true">*</span>
     </label>
     <textarea
       rows="10"
       id="ContactForm-body"
       class="contact-form__input contact-form__input--textarea"
       name="contact[body]"
-      placeholder="{{ 'blocks.contact_form.comment' | t }}"
+      placeholder="Comment* (Please kindly provide product link or SKU# to have your problem solved promptly.)"
+      aria-required="true"
     >
       {{- form.body -}}
     </textarea>
