@@ -887,19 +887,23 @@
           return;
         }
         
-        // 如果不是同一个文件，清除之前的模型引用，确保能加载新模型
+        // 如果不是同一个文件，强制清除之前的模型引用，确保能加载新模型
         console.log('Switching to different file, loading new model:', fileData.file.name);
         console.log('Previous model:', o3dvWrapper.currentModel ? o3dvWrapper.currentModel.name : 'none');
         console.log('Previous fileId:', fileManager.currentFileId, 'New fileId:', fileId);
+        console.log('File objects match:', o3dvWrapper.currentModel === fileData.file);
         
-        // 清除之前的模型引用，强制重新加载
-        if (o3dvWrapper.currentModel && o3dvWrapper.currentModel !== fileData.file) {
-          console.log('Clearing previous model reference');
+        // 强制清除之前的模型引用，无论是否相同，确保切换文件时总是重新加载
+        if (o3dvWrapper.currentModel !== fileData.file) {
+          console.log('Clearing previous model reference (files are different)');
+          o3dvWrapper.currentModel = null;
+        } else {
+          console.log('Warning: File objects are the same but fileId is different - forcing reload');
           o3dvWrapper.currentModel = null;
         }
         
         await loadSTPWithAdvancedViewer(fileData.file);
-        console.log('loadSTPWithAdvancedViewer completed');
+        console.log('loadSTPWithAdvancedViewer completed for:', fileData.file.name);
         return;
       }
 

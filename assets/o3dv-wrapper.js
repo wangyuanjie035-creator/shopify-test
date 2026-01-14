@@ -228,63 +228,103 @@ class O3DVWrapper {
           placeholder.style.display = 'none';
         }
         
-        // 清除之前的模型（如果存在），确保切换文件时能正确显示新模型
-        if (this.currentModel && this.viewer && typeof this.viewer.Clear === 'function') {
+        // 强制清除之前的模型（无论是否存在），确保切换文件时能正确显示新模型
+        // 先清除 currentModel 引用，避免检查逻辑误判
+        const previousModel = this.currentModel;
+        this.currentModel = null;
+        
+        if (this.viewer && typeof this.viewer.Clear === 'function') {
           console.log('O3DVWrapper: Clearing previous model before loading new one');
+          console.log('Previous model:', previousModel ? previousModel.name : 'none');
+          console.log('New model:', file.name);
           try {
             this.viewer.Clear();
+            // 等待一小段时间确保清除完成（使用 requestAnimationFrame 确保清除操作完成）
+            requestAnimationFrame(() => {
+              this.loadFileAfterClear(file, resolve, reject, fileSizeMB);
+            });
+            return; // 提前返回，等待 requestAnimationFrame 回调
           } catch (e) {
             console.warn('O3DVWrapper: Failed to clear previous model:', e);
+            // 如果清除失败，继续加载
+            this.loadFileAfterClear(file, resolve, reject, fileSizeMB);
+            return;
           }
+        } else {
+          // 如果没有 Clear 方法，直接加载
+          this.loadFileAfterClear(file, resolve, reject, fileSizeMB);
+          return;
         }
-        
-        // 显示加载状态
-        this.showLoading();
-        
-        // 加载STP文件
-        this.viewer.LoadModelFromFileList([file], () => {
-          // 立即隐藏加载指示器
-          this.hideLoadingSafely();
-          this.currentModel = file;
-          console.log('O3DVWrapper: STP file loaded successfully');
-          
-          // 渲染完成后适配窗口并触发一次重绘
-          try {
-            if (this.viewer && typeof this.viewer.FitToWindow === 'function') {
-              this.viewer.FitToWindow();
-            }
-            if (this.viewer && typeof this.viewer.Resize === 'function') {
-              this.viewer.Resize();
-            }
-          } catch (e) {}
-          
-          // 延迟一帧再次适配，确保加载指示器完全隐藏
-          requestAnimationFrame(() => {
-            try {
-              if (this.viewer && typeof this.viewer.Resize === 'function') {
-                this.viewer.Resize();
-              }
-              if (this.viewer && typeof this.viewer.FitToWindow === 'function') {
-                this.viewer.FitToWindow();
-              }
-            } catch (e) {}
-            // 再次确保加载指示器隐藏
-            this.hideLoadingSafely();
-          });
-          
-          resolve(file);
-        });
-        // 超时兜底：根据文件大小调整超时时间，大文件给更多时间
-        this._loadingFallbackTimer && clearTimeout(this._loadingFallbackTimer);
-        const timeoutMs = fileSizeMB > 50 ? 30000 : 15000; // 大文件30秒，小文件15秒
-        this._loadingFallbackTimer = setTimeout(() => this.hideLoadingSafely(), timeoutMs);
-        
       } catch (error) {
         this.hideLoadingSafely();
         console.error('O3DVWrapper: Failed to load STP file:', error);
         reject(error);
       }
     });
+  }
+
+  // 在清除完成后加载文件
+  loadFileAfterClear(file, resolve, reject, fileSizeMB) {
+    try {
+      // 显示加载状态
+      this.showLoading();
+      
+      console.log('O3DVWrapper: About to call LoadModelFromFileList for:', file.name);
+      console.log('O3DVWrapper: File object:', file);
+      console.log('O3DVWrapper: File size:', file.size);
+      
+      // 加载STP文件
+      this.viewer.LoadModelFromFileList([file], () => {
+        // 立即隐藏加载指示器
+        this.hideLoadingSafely();
+        this.currentModel = file;
+        console.log('O3DVWrapper: STP file loaded successfully:', file.name);
+        
+        // 渲染完成后适配窗口并触发一次重绘
+        try {
+          if (this.viewer && typeof this.viewer.FitToWindow === 'function') {
+            this.viewer.FitToWindow();
+          }
+          if (this.viewer && typeof this.viewer.Resize === 'function') {
+            this.viewer.Resize();
+          }
+        } catch (e) {
+          console.warn('O3DVWrapper: Error in FitToWindow/Resize:', e);
+        }
+        
+        // 延迟一帧再次适配，确保加载指示器完全隐藏
+        requestAnimationFrame(() => {
+          try {
+            if (this.viewer && typeof this.viewer.Resize === 'function') {
+              this.viewer.Resize();
+            }
+            if (this.viewer && typeof this.viewer.FitToWindow === 'function') {
+              this.viewer.FitToWindow();
+            }
+          } catch (e) {
+            console.warn('O3DVWrapper: Error in delayed FitToWindow/Resize:', e);
+          }
+          // 再次确保加载指示器隐藏
+          this.hideLoadingSafely();
+        });
+        
+        resolve(file);
+      });
+      
+      // 超时兜底：根据文件大小调整超时时间，大文件给更多时间
+      this._loadingFallbackTimer && clearTimeout(this._loadingFallbackTimer);
+      const timeoutMs = fileSizeMB > 50 ? 30000 : 15000; // 大文件30秒，小文件15秒
+      this._loadingFallbackTimer = setTimeout(() => {
+        console.warn('O3DVWrapper: Loading timeout, hiding loading indicator');
+        this.hideLoadingSafely();
+      }, timeoutMs);
+      
+    } catch (error) {
+      this.hideLoadingSafely();
+      console.error('O3DVWrapper: Failed to load STP file:', error);
+      reject(error);
+    }
+  }
   }
 
   loadSTPFromUrl(url) {
