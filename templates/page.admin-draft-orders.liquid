@@ -1283,14 +1283,14 @@
 
       // 显示下载确认提示
       if (filesToDownload.length > 1) {
-        const fileList = filesToDownload.map((f, idx) => `  ${idx + 1}. ${f.fileName} (${f.fileType})`).join('\n');
+        const fileList = filesToDownload.map((f, idx) => `  ${idx + 1}. ${f.fileName}`).join('\n');
         const confirmMsg = `检测到 ${filesToDownload.length} 个文件，将逐个下载：\n\n${fileList}\n\n浏览器可能会询问是否允许多个下载，请点击"允许"。\n\n是否继续？`;
         if (!confirm(confirmMsg)) {
           return;
         }
       } else {
         // 单个文件也显示提示
-        const singleFileMsg = `准备下载文件：${filesToDownload[0].fileName} (${filesToDownload[0].fileType})`;
+        const singleFileMsg = `准备下载文件：${filesToDownload[0].fileName}`;
         if (!confirm(singleFileMsg + '\n\n是否继续？')) {
           return;
         }
@@ -1368,28 +1368,20 @@
         }
       }
 
-      // 显示下载完成总结
-      setTimeout(() => {
-        if (downloadStats.total > 1) {
-          let summaryMsg = `✅ 下载完成！\n\n总计: ${downloadStats.total} 个文件\n成功: ${downloadStats.success} 个\n失败: ${downloadStats.failed} 个`;
-          
-          if (downloadStats.failed > 0) {
+      // 显示下载完成总结（仅在有失败时显示）
+      if (downloadStats.failed > 0) {
+        setTimeout(() => {
+          if (downloadStats.total > 1) {
+            let summaryMsg = `❌ 部分文件下载失败\n\n总计: ${downloadStats.total} 个文件\n成功: ${downloadStats.success} 个\n失败: ${downloadStats.failed} 个`;
             summaryMsg += `\n\n失败的文件：\n${downloadStats.failedFiles.map(f => `  • ${f.fileName}: ${f.error}`).join('\n')}`;
             summaryMsg += `\n\n如果某些文件没有下载，请检查浏览器的下载设置，确保允许多个下载。`;
+            alert(summaryMsg);
           } else {
-            summaryMsg += `\n\n所有文件已成功启动下载！`;
-          }
-          
-          alert(summaryMsg);
-        } else {
-          // 单个文件
-          if (downloadStats.success > 0) {
-            alert(`✅ 文件下载已启动：${filesToDownload[0].fileName}`);
-          } else {
+            // 单个文件失败
             alert(`❌ 文件下载失败：${filesToDownload[0].fileName}\n\n错误：${downloadStats.failedFiles[0]?.error || '未知错误'}`);
           }
-        }
-      }, 1000);
+        }, 1000);
+      }
     } catch (error) {
       console.error('下载文件失败:', error);
       alert('下载文件失败: ' + error.message);
