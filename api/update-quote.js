@@ -97,8 +97,6 @@ export default async function handler(req, res) {
   }
   
   try {
-    console.log('开始更新报价:', { draftOrderId, amount });
-    
     // ═══════════════════════════════════════════════════════════
     // 步骤 1: 查询现有 Draft Order 的详情
     // ═══════════════════════════════════════════════════════════
@@ -138,8 +136,6 @@ export default async function handler(req, res) {
     
     const currentDraftOrder = currentResult.data.draftOrder;
     const currentLineItem = currentDraftOrder.lineItems.edges[0].node;
-    
-    console.log('当前 Draft Order:', currentDraftOrder.name);
     
     // ═══════════════════════════════════════════════════════════
     // 步骤 2: 更新 Draft Order 价格
@@ -225,7 +221,6 @@ export default async function handler(req, res) {
     }
     
     const updatedDraftOrder = updateResult.data.draftOrderUpdate.draftOrder;
-    console.log('Draft Order 更新成功，新价格:', updatedDraftOrder.totalPrice);
     
     // ═══════════════════════════════════════════════════════════
     // 步骤 3: 同步更新 Metaobject 状态
@@ -290,7 +285,6 @@ export default async function handler(req, res) {
           }
         });
         
-        console.log('Metaobject 状态同步成功');
       } else {
         console.warn('未找到对应的 Metaobject，跳过同步');
       }

@@ -694,8 +694,6 @@ const authQuery = authParams();
 const urlParams = new URLSearchParams(window.location.search);
 const draftOrderId = urlParams.get('id');
 
-console.log('草稿订单ID:', draftOrderId);
-
 // 页面加载时获取订单详情
 document.addEventListener('DOMContentLoaded', async function() {
   if (!customerEmail) {
@@ -704,7 +702,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   if (!draftOrderId) {
     // 如果没有指定订单ID，显示所有订单列表
-    console.log('未指定订单ID，加载所有订单列表');
     await loadAllOrders();
     return;
   }
@@ -714,7 +711,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // 设置定时刷新，每30秒检查一次订单状态更新
     setInterval(() => {
-      console.log('⏰ 定时刷新订单状态...');
       refreshOrderStatus();
     }, 30000); // 30秒刷新一次
   } catch (error) {
@@ -726,8 +722,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 // 刷新订单状态函数
 async function refreshOrderStatus() {
   try {
-    console.log('🔄 刷新订单状态:', draftOrderId);
-    
     // 直接查询最新的订单详情
     const response = await fetch(`${API_BASE}/get-draft-order-simple?id=${encodeURIComponent(draftOrderId)}&${authQuery}`);
     
@@ -757,16 +751,6 @@ async function refreshOrderStatus() {
           }
           
           if (statusChanged || priceChanged || customStatusChanged) {
-            console.log('📊 检测到订单更新:', {
-              statusChanged,
-              priceChanged,
-              customStatusChanged,
-              oldStatus: currentStatus.text,
-              newStatus: newStatus.text,
-              oldPrice: currentOrder.totalPrice,
-              newPrice: newOrder.totalPrice
-            });
-            
             // 更新当前订单数据
             window.currentDraftOrder = newOrder;
             
@@ -790,27 +774,14 @@ async function refreshOrderStatus() {
 
 // 加载订单详情
 async function loadOrderDetails() {
-  console.log('开始加载订单详情...');
-  console.log('草稿订单ID:', draftOrderId);
-  
   try {
     // 先检查所有草稿订单
-    console.log('检查所有草稿订单...');
     const listResponse = await fetch(`${API_BASE}/get-draft-orders?${authQuery}`);
     const listData = await listResponse.json();
-    console.log('草稿订单列表:', listData);
-    
-    if (listData.success && listData.draftOrders.length === 0) {
-      console.log('草稿订单列表为空，继续尝试直接查询...');
-      // 不要直接抛出错误，继续尝试直接查询
-    }
     
     // 查找匹配的订单
     let foundOrder = null;
     if (listData.success && listData.draftOrders.length > 0) {
-      console.log('搜索订单ID:', draftOrderId);
-      console.log('订单列表:', listData.draftOrders.map(o => ({ id: o.id, name: o.name })));
-      
       foundOrder = listData.draftOrders.find(order => {
         // 多种匹配方式
         const matches = [
@@ -826,30 +797,18 @@ async function loadOrderDetails() {
           order.id && order.id.includes(decodeURIComponent(draftOrderId).replace(/\D/g, ''))
         ];
         
-        const isMatch = matches.some(match => match);
-        if (isMatch) {
-          console.log('✅ 找到匹配订单:', { 
-            searchId: draftOrderId, 
-            orderId: order.id, 
-            orderName: order.name 
-          });
-        }
-        return isMatch;
+        return matches.some(match => match);
       });
       
       if (foundOrder) {
-        console.log('在列表中找到订单:', foundOrder);
         // 使用找到的订单数据
         window.currentDraftOrder = foundOrder;
         renderOrderDetails(foundOrder);
         return;
-      } else {
-        console.log('❌ 在订单列表中未找到匹配的订单');
       }
     }
     
     // 如果列表中没有找到，尝试直接查询
-    console.log('尝试直接查询订单详情...');
     const response = await fetch(`${API_BASE}/get-draft-order-simple?id=${encodeURIComponent(draftOrderId)}&${authQuery}`);
     
     if (!response.ok) {
@@ -860,7 +819,6 @@ async function loadOrderDetails() {
     }
     
     const data = await response.json();
-    console.log('订单详情:', data);
     
     if (!data.draftOrder) {
       throw new Error('订单数据为空');
@@ -883,8 +841,6 @@ async function loadOrderDetails() {
 
 // 渲染订单详情
 function renderOrderDetails(order) {
-  console.log('渲染订单详情:', order);
-  
   // 更新订单号
   const orderNumberEl = document.getElementById('order-number');
   orderNumberEl.textContent = `订单 #${order.name || order.id}`;
@@ -999,14 +955,6 @@ function createItemCard(item) {
   const quantity = item.quantity || 1;
   const itemTotal = price * quantity;
   
-  console.log('项目价格:', { 
-    originalUnitPrice: item.originalUnitPrice, 
-    price: item.price, 
-    calculatedPrice: price,
-    quantity,
-    itemTotal
-  });
-  
   // 获取自定义属性
   const attrs = item.customAttributes || [];
   const getAttribute = (key) => {
@@ -1063,7 +1011,6 @@ function updatePrices(order) {
   // 优先从totalPrice获取
   if (order.totalPrice) {
     subtotal = parseFloat(order.totalPrice);
-    console.log('从order.totalPrice获取价格:', subtotal);
   } 
   // 如果没有totalPrice，尝试从lineItems计算
   else if (order.lineItems && order.lineItems.length > 0) {
@@ -1072,15 +1019,12 @@ function updatePrices(order) {
       const quantity = item.quantity || 1;
       subtotal += price * quantity;
     });
-    console.log('从lineItems计算价格:', subtotal);
   }
   
   const formattedPrice = subtotal > 0 ? `$${subtotal.toFixed(2)}` : '待报价';
   
   document.getElementById('subtotal').textContent = formattedPrice;
   document.getElementById('total').textContent = formattedPrice;
-  
-  console.log('价格显示:', formattedPrice);
 }
 
   // 更新按钮状态
@@ -1096,7 +1040,6 @@ function updateButtonState(order) {
     
     if (statusAttr) {
       orderStatus = statusAttr.value;
-      console.log('从自定义属性获取状态:', orderStatus);
     }
   }
   
@@ -1106,7 +1049,6 @@ function updateButtonState(order) {
     placeOrderBtn.textContent = '无法加工';
     placeOrderBtn.style.opacity = '0.6';
     placeOrderBtn.style.cursor = 'not-allowed';
-    console.log('❌ 按钮状态: 无法加工（禁用）');
     return;
   }
   
@@ -1115,7 +1057,6 @@ function updateButtonState(order) {
   
   if (orderStatus === '已报价') {
     isQuoted = true;
-    console.log('✅ 从自定义属性确认已报价');
   }
   
   // 回退到检查totalPrice
@@ -1123,7 +1064,6 @@ function updateButtonState(order) {
     const totalPrice = parseFloat(order.totalPrice || 0);
     if (totalPrice > 0) {
       isQuoted = true;
-      console.log('✅ 从totalPrice确认已报价:', totalPrice);
     }
   }
   
@@ -1132,13 +1072,11 @@ function updateButtonState(order) {
     placeOrderBtn.textContent = '等待报价';
     placeOrderBtn.style.opacity = '0.6';
     placeOrderBtn.style.cursor = 'not-allowed';
-    console.log('⏳ 按钮状态: 等待报价（禁用）');
   } else {
     placeOrderBtn.disabled = false;
     placeOrderBtn.textContent = '立即下单';
     placeOrderBtn.style.opacity = '1';
     placeOrderBtn.style.cursor = 'pointer';
-    console.log('✅ 按钮状态: 立即下单（启用）');
   }
 }
 
@@ -1152,7 +1090,6 @@ function getOrderStatus(order) {
     
     if (statusAttr) {
       const status = statusAttr.value;
-      console.log('从自定义属性获取状态:', status);
       
       if (status === '已报价') {
         return {
@@ -1170,7 +1107,6 @@ function getOrderStatus(order) {
   
   // 回退到检查totalPrice
   const totalPrice = parseFloat(order.totalPrice || 0);
-  console.log('从totalPrice判断状态:', totalPrice);
   
   if (totalPrice > 0) {
     return {
@@ -1233,10 +1169,8 @@ async function placeOrder() {
     return;
   }
   
-  try {
-    console.log('开始添加到购物车...', order);
-    
-    // 准备购物车项目
+    try {
+      // 准备购物车项目
     const cartItems = [];
     
     if (order.lineItems && order.lineItems.length > 0) {
@@ -1266,23 +1200,16 @@ async function placeOrder() {
       }
     }
     
-    console.log('准备添加到购物车:', cartItems);
-    
     // 检查是否有有效的产品ID
     const hasValidProductId = cartItems.some(item => item.id && item.id !== 0);
     
     if (!hasValidProductId) {
-      console.log('没有有效的产品ID，使用自定义报价方案');
-      
       // 使用简单的方法获取产品ID，参考项目的做法
-      console.log('获取产品ID...');
-      
       let genericProductId = null;
       
       // 方法1: 从全局变量获取
       if (window.theme && window.theme.defaultVariantId) {
         genericProductId = window.theme.defaultVariantId;
-        console.log('✅ 使用主题默认产品ID:', genericProductId);
       }
       
       // 方法2: 从页面数据获取
@@ -1293,10 +1220,9 @@ async function placeOrder() {
             const product = JSON.parse(productData.textContent);
             if (product && product.selected_or_first_available_variant) {
               genericProductId = product.selected_or_first_available_variant.id.toString();
-              console.log('✅ 使用页面产品ID:', genericProductId);
             }
           } catch (e) {
-            console.log('解析产品数据失败:', e);
+            // 解析失败，继续尝试其他方法
           }
         }
       }
@@ -1305,7 +1231,6 @@ async function placeOrder() {
       if (!genericProductId) {
         // 使用您商店中的3D模型上传与报价服务产品变体ID
         genericProductId = '51217840308511'; // 您的实际产品变体ID
-        console.log('✅ 使用商店产品ID:', genericProductId);
       }
       
       if (!genericProductId) {
@@ -1314,8 +1239,6 @@ async function placeOrder() {
       }
       
       // 直接使用 complete-draft-order API，避免购物车价格问题
-      console.log('🔄 直接完成草稿订单，避免购物车价格问题...');
-      
       try {
         const completeResponse = await fetch(`${API_BASE}/complete-draft-order`, {
           method: 'POST',
@@ -1327,11 +1250,8 @@ async function placeOrder() {
           })
         });
         
-        console.log('📡 完成草稿订单响应:', completeResponse.status);
-        
         if (completeResponse.ok) {
           const completeResult = await completeResponse.json();
-          console.log('📦 完成结果:', completeResult);
           
           if (completeResult.success) {
             alert(`订单已准备就绪！\n\n订单号：${completeResult.draftOrder.name}\n金额：$${totalPrice}\n\n即将跳转到付款页面...`);
@@ -1378,7 +1298,6 @@ async function placeOrder() {
 // 加载所有订单列表
 async function loadAllOrders() {
   try {
-    console.log('加载所有订单列表...');
     const response = await fetch(`${API_BASE}/get-draft-orders?${authQuery}`);
     
     if (!response.ok) {
@@ -1386,7 +1305,6 @@ async function loadAllOrders() {
     }
     
     const data = await response.json();
-    console.log('订单列表数据:', data);
     
     if (data.success && data.draftOrders.length > 0) {
       renderOrdersList(data.draftOrders);
@@ -1401,8 +1319,6 @@ async function loadAllOrders() {
 
 // 渲染订单列表
 function renderOrdersList(orders) {
-  console.log('渲染订单列表:', orders);
-  
   // 隐藏单个订单详情
   document.getElementById('quote-detail').style.display = 'none';
   document.getElementById('loading-state').style.display = 'none';
@@ -1485,7 +1401,6 @@ function createOrderCard(order) {
 
 // 查看订单详情
 function viewOrder(orderId) {
-  console.log('查看订单:', orderId);
   window.location.href = `${window.location.pathname}?id=${encodeURIComponent(orderId)}`;
 }
 
@@ -1496,7 +1411,6 @@ async function deleteOrder(orderId) {
   }
   
   try {
-    console.log('删除订单:', orderId);
     const response = await fetch(`${API_BASE}/delete-draft-order`, {
       method: 'POST',
       headers: {
@@ -1633,7 +1547,6 @@ function filterOrdersByCustomerEmail() {
   if (!customerEmailDiv) return null;
   
   const customerEmail = customerEmailDiv.getAttribute('data-customer-email');
-  console.log('当前登录客户邮箱:', customerEmail);
   return customerEmail;
 }
 

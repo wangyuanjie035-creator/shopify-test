@@ -59,14 +59,11 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('开始删除Draft Order:', draftOrderId);
-
     // 获取环境变量 - 支持多种变量名
     const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
     const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
     
     if (!storeDomain || !accessToken) {
-      console.log('环境变量未配置，返回模拟删除结果');
       return res.status(200).json({
         success: true,
         message: '环境变量未配置，模拟删除成功',
@@ -139,7 +136,6 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    console.log('Shopify API响应:', data);
 
     if (data.errors) {
       console.error('GraphQL错误:', data.errors);

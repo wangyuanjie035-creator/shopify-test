@@ -90,7 +90,6 @@ export default async function handler(req, res) {
       const resourceType = contentCategory === 'MODEL_3D' ? 'MODEL_3D' : 'FILE';
       const stagedMimeType = resourceType === 'MODEL_3D' ? mimeType : 'application/octet-stream';
 
-      console.log(`📁 开始上传文件: ${fileName}, 大小: ${fileSize} 字节`, { fileType, contentCategory });
 
       // 获取环境变量
       const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
@@ -154,7 +153,6 @@ export default async function handler(req, res) {
       }
 
       const stagedTarget = stagedUploadData.data.stagedUploadsCreate.stagedTargets[0];
-      console.log('✅ Staged Upload创建成功:', stagedTarget);
 
       // 步骤2: 上传文件到临时地址
       const parameters = Array.isArray(stagedTarget.parameters) ? stagedTarget.parameters : [];
@@ -219,7 +217,6 @@ export default async function handler(req, res) {
         });
       }
 
-      console.log('✅ 文件上传到临时地址成功');
 
       // 步骤3: 创建永久文件记录
       const fileCreateMutation = `
@@ -276,7 +273,6 @@ export default async function handler(req, res) {
       const fileRecord = createdFiles[0];
       const shopifyFileUrl = fileRecord.url || stagedTarget.resourceUrl;
       const shopifyFileSize = fileRecord.originalFileSize || fileSize;
-      console.log('✅ 文件记录创建成功:', fileRecord.id, 'url:', shopifyFileUrl);
 
       // 生成文件ID（内部关联用）
       const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -322,7 +318,6 @@ export default async function handler(req, res) {
         if (metaJson.errors || metaErrors.length > 0) {
           console.warn('⚠️ Metaobject 写入失败（非致命）：', JSON.stringify(metaErrors || metaJson, null, 2));
         } else {
-          console.log('✅ Metaobject 写入成功:', metaJson?.data?.metaobjectCreate?.metaobject?.id);
         }
       } catch (metaErr) {
         console.warn('⚠️ Metaobject 写入异常（非致命）：', metaErr.message);

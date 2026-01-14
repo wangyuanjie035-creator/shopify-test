@@ -15,7 +15,6 @@ export async function storeFileData({ draftOrderId, fileData, fileName }) {
       uploadTime: new Date().toISOString()
     });
 
-    console.log('✅ 文件数据存储成功:', { fileId, fileName, draftOrderId });
 
     return {
       success: true,

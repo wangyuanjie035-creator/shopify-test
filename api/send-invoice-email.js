@@ -82,7 +82,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('开始发送发票邮件:', { draftOrderId, customMessage });
 
     // ═══════════════════════════════════════════════════════════
     // 步骤 1: 查询草稿订单信息
@@ -124,12 +123,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '草稿订单没有客户邮箱地址' });
     }
 
-    console.log('草稿订单信息:', {
-      name: draftOrder.name,
-      email: draftOrder.email,
-      totalPrice: draftOrder.totalPrice
-    });
-
     // ═══════════════════════════════════════════════════════════
     // 步骤 2: 发送发票邮件
     // ═══════════════════════════════════════════════════════════
@@ -157,8 +150,6 @@ export default async function handler(req, res) {
     if (sendInvoiceResult.data.draftOrderInvoiceSend.userErrors.length > 0) {
       throw new Error('发送发票邮件失败: ' + sendInvoiceResult.data.draftOrderInvoiceSend.userErrors[0].message);
     }
-    
-    console.log('发票邮件发送成功');
     
     // ═══════════════════════════════════════════════════════════
     // 返回结果

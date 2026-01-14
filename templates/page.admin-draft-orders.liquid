@@ -742,8 +742,6 @@
   
   // 设置事件监听器
   function setupEventListeners() {
-    console.log('设置事件监听器...');
-    
     // 使用事件委托，避免重复绑定问题
     const filterSection = document.querySelector('.filter-section');
     if (!filterSection) {
@@ -758,26 +756,20 @@
     // 状态过滤器按钮 - 使用事件委托
     newFilterSection.addEventListener('click', function(e) {
       if (e.target.classList.contains('filter-btn')) {
-        console.log('点击状态筛选按钮:', e.target.dataset.status);
         newFilterSection.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         currentFilter = e.target.dataset.status;
-        console.log('当前状态筛选:', currentFilter);
         renderOrders();
       }
       
       // 时间过滤器按钮
       if (e.target.classList.contains('time-filter-btn')) {
-        console.log('点击时间筛选按钮:', e.target.dataset.time);
         newFilterSection.querySelectorAll('.time-filter-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         currentTimeFilter = e.target.dataset.time;
-        console.log('当前时间筛选:', currentTimeFilter);
         renderOrders();
       }
     });
-    
-    console.log('事件监听器设置完成');
   }
   
   // 获取订单状态文本
@@ -797,8 +789,6 @@
   // 加载订单列表
   async function loadOrders() {
     try {
-      console.log('开始加载Draft Orders...');
-      
       // 调用API获取Draft Orders
       const response = await fetch(`${API_BASE}/get-draft-orders?admin=1&email=${encodeURIComponent(customerEmail)}`);
       
@@ -807,10 +797,6 @@
       }
       
       const data = await response.json();
-      console.log('API响应数据:', data);
-      console.log('data.success:', data.success);
-      console.log('data.draftOrders:', data.draftOrders);
-      console.log('draftOrders长度:', data.draftOrders ? data.draftOrders.length : 'undefined');
       
       if (data.success && data.draftOrders) {
         currentOrders = data.draftOrders.map(order => {
@@ -845,12 +831,8 @@
           };
         });
         
-        console.log('处理后的订单:', currentOrders);
-        console.log('实际渲染的订单数量:', currentOrders.length);
-        
       } else {
         currentOrders = [];
-        console.log('没有找到Draft Orders');
       }
       
       renderOrders();
@@ -897,14 +879,6 @@
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       
-      console.log('时间过滤:', {
-        filter: currentTimeFilter,
-        todayStart: todayStart.toLocaleString('zh-CN'),
-        weekAgo: weekAgo.toLocaleString('zh-CN'),
-        monthAgo: monthAgo.toLocaleString('zh-CN'),
-        totalOrders: filteredOrders.length
-      });
-      
       filteredOrders = filteredOrders.filter(order => {
         const orderDate = new Date(order.createdAt);
         let match = false;
@@ -923,18 +897,8 @@
             match = true;
         }
         
-        if (match) {
-          console.log('订单匹配时间筛选:', {
-            orderId: order.id,
-            orderDate: orderDate.toLocaleString('zh-CN'),
-            filter: currentTimeFilter
-          });
-        }
-        
         return match;
       });
-      
-      console.log('时间过滤后订单数量:', filteredOrders.length);
     }
     
     if (filteredOrders.length === 0) {
@@ -946,9 +910,6 @@
       `;
       return;
     }
-    
-    console.log('准备渲染的订单数量:', filteredOrders.length);
-    console.log('过滤后的订单:', filteredOrders);
     
     ordersList.innerHTML = filteredOrders.map(order => `
       <div class="order-item">
@@ -1120,8 +1081,6 @@
     }
     
     try {
-      console.log('提交报价:', { orderId: window.currentQuoteOrderId, amount, note });
-      
       const response = await fetch(`${API_BASE}/update-quote`, {
         method: 'POST',
         headers: {
@@ -1135,7 +1094,6 @@
       });
       
       const data = await response.json();
-      console.log('报价提交响应:', data);
       
       if (data.success) {
         alert('报价提交成功！');
@@ -1176,8 +1134,6 @@
         return;
       }
       
-      console.log('开始标记订单为无法加工:', { orderId, customerEmail, orderName, reason, suggestion });
-      
       // 步骤1: 更新订单状态为"无法加工"
       const updateResponse = await fetch(`${API_BASE}/update-quote`, {
         method: 'POST',
@@ -1193,7 +1149,6 @@
       });
       
       const updateData = await updateResponse.json();
-      console.log('更新订单状态响应:', updateData);
       
       if (!updateData.success) {
         alert('❌ 更新订单状态失败: ' + (updateData.message || '未知错误'));
@@ -1237,8 +1192,6 @@
   // 发送发票邮件
   async function sendInvoiceEmail(orderId, customerEmail, orderName) {
     try {
-      console.log('开始发送发票邮件:', { orderId, customerEmail, orderName });
-      
       // 确认发送
       if (!confirm(`确认向客户发送发票邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含结账链接和订单详情。`)) {
         return;
@@ -1256,7 +1209,6 @@
       });
       
       const data = await response.json();
-      console.log('发送邮件响应:', data);
       
       if (data.success) {
         alert(`✅ 发票邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n💰 金额: $${data.totalPrice}\n🔗 结账链接: ${data.invoiceUrl}`);
@@ -1273,8 +1225,6 @@
   // 下载订单所有文件（3D + 2D，优先使用 Shopify 文件 URL / ID）
   async function downloadOrderFile(orderId) {
     try {
-      console.log('开始下载订单所有文件，订单ID:', orderId);
-      
       const order = currentOrders.find(o => o.id === orderId);
       if (!order) {
         alert('未找到订单信息');
@@ -1303,7 +1253,6 @@
 
         // 检查是否有任何文件标识符
         if (!fileIdAttr && !shopifyFileUrl && !shopifyFileId) {
-          console.log('该行无文件信息，跳过:', fileName, 'customAttributes:', attrs);
           continue;
         }
 
@@ -1339,8 +1288,6 @@
         return;
       }
 
-      console.log(`找到 ${filesToDownload.length} 个文件需要下载:`, filesToDownload);
-
       // 显示下载进度提示
       if (filesToDownload.length > 1) {
         const confirmMsg = `检测到 ${filesToDownload.length} 个文件，将逐个下载。\n\n浏览器可能会询问是否允许多个下载，请点击"允许"。\n\n是否继续？`;
@@ -1352,7 +1299,6 @@
       // 逐个下载文件（使用更长的延迟，避免浏览器阻止）
       for (let i = 0; i < filesToDownload.length; i++) {
         const file = filesToDownload[i];
-        console.log(`[${i + 1}/${filesToDownload.length}] 下载文件:`, file.fileName);
 
         try {
           if (file.downloadMethod === 'shopifyFileId') {
@@ -1366,7 +1312,6 @@
             if (!response.ok) {
               // 如果是 shopifyFileUrl 且失败，尝试降级到直接下载
               if (file.downloadMethod === 'shopifyFileUrl' && file.shopifyFileUrl) {
-                console.log('API下载失败，尝试直接下载:', file.shopifyFileUrl);
                 const link = document.createElement('a');
                 link.href = file.shopifyFileUrl;
                 link.download = file.fileName;
@@ -1389,7 +1334,6 @@
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
-            console.log(`✅ 文件下载完成: ${file.fileName}`);
             // 延迟，避免浏览器阻止多个下载
             await new Promise(resolve => setTimeout(resolve, 500));
           }
@@ -1405,8 +1349,6 @@
           alert(`✅ 已启动 ${filesToDownload.length} 个文件的下载。\n\n如果某些文件没有下载，请检查浏览器的下载设置，确保允许多个下载。`);
         }, 1000);
       }
-
-      console.log('订单所有文件下载流程结束');
     } catch (error) {
       console.error('下载文件失败:', error);
       alert('下载文件失败: ' + error.message);
@@ -1416,25 +1358,20 @@
   // 标准文件下载函数 - 按照文档流程（基于之前工作版本）
   async function downloadFile(url, fileName) {
     try {
-      console.log('downloadFile调用:', { url: url ? url.substring(0, 100) + '...' : 'null', fileName });
-      
       // 检查 URL 类型（data:、http://、https://）
       if (url && url.startsWith('data:')) {
         // Base64 数据，直接下载
-        console.log('✅ 检测到Base64数据，直接下载');
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        console.log('✅ Base64文件下载完成:', fileName);
         return;
       }
       
       if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
         // HTTP/HTTPS URL，直接下载
-        console.log('✅ 检测到HTTP URL，直接下载');
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName;
@@ -1442,13 +1379,11 @@
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        console.log('✅ HTTP文件下载完成:', fileName);
         return;
       }
       
       // 其他情况，通过API下载
       if (url) {
-        console.log('✅ 通过API下载文件');
         const response = await fetch(`${API_BASE}/download-file?id=${encodeURIComponent(url)}`);
         
         if (response.ok) {
@@ -1461,7 +1396,6 @@
           link.click();
           document.body.removeChild(link);
           window.URL.revokeObjectURL(downloadUrl);
-          console.log('✅ API文件下载完成:', fileName);
           return;
         } else {
           throw new Error(`API下载失败: ${response.status}`);
@@ -1747,8 +1681,6 @@
     }
 
     try {
-      console.log('删除询价单:', orderId);
-      
       const order = currentOrders.find(o => o.id === orderId);
       let fileId = '';
       
@@ -1765,7 +1697,6 @@
       // 先清理文件（如果存在）
       if (fileId) {
         try {
-          console.log('清理关联文件:', fileId);
           await fetch(`${API_BASE}/cleanup-files`, {
             method: 'POST',
             headers: {
@@ -1793,7 +1724,6 @@
       });
 
       const data = await response.json();
-      console.log('删除响应:', data);
 
       if (data.success) {
         alert('询价单删除成功！');

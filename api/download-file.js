@@ -127,18 +127,14 @@ export default async function handler(req, res) {
     const fileType = getField('file_type') || 'application/octet-stream';
     const fileData = getField('file_data');
     const fileUrlCdn = getField('file_url');
-    
-    console.log('文件记录:', { id, fileName, fileType, fileUrlCdn, hasFileData: !!fileData });
 
     // 如果有 Shopify Files 的 URL，则直接重定向
     if (fileUrlCdn && (fileUrlCdn.startsWith('http://') || fileUrlCdn.startsWith('https://'))) {
-      console.log('重定向到 Shopify CDN:', fileUrlCdn);
       res.writeHead(302, { Location: fileUrlCdn });
       return res.end();
     }
 
     if (!fileData) {
-      console.log('文件数据缺失，file_url:', fileUrlCdn);
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>文件数据缺失</title><style>body{font-family:Arial,sans-serif;max-width:680px;margin:40px auto;background:#f7f7f7;padding:20px}.card{background:#fff;padding:28px 32px;border-radius:10px;box-shadow:0 3px 16px rgba(0,0,0,.08)}h1{color:#e67e22;font-size:22px;margin:0 0 12px}p{color:#555;line-height:1.7;margin:8px 0}code{background:#f2f2f2;padding:4px 6px;border-radius:4px}</style></head><body><div class="card"><h1>⚠️ 文件数据缺失</h1><p>文件ID：<code>${id}</code></p><p>文件名：<code>${fileName}</code></p><p>此文件的数据未能正确存储。可能的原因：</p><ul><li>文件上传过程中断</li><li>文件过大被截断</li><li>Shopify Files API 存储失败</li></ul><p>建议：请联系客户重新上传文件。</p></div></body></html>`;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.status(500).send(html);
@@ -164,7 +160,6 @@ export default async function handler(req, res) {
 // 处理Shopify文件URL直接下载
 async function handleShopifyFileUrlDownload(req, res, shopifyFileUrl, requestedFileName) {
   try {
-    console.log('开始通过URL下载Shopify文件:', { shopifyFileUrl, requestedFileName });
 
     // 获取文件内容
     const fileResponse = await fetch(shopifyFileUrl);
@@ -202,7 +197,6 @@ async function handleShopifyFileUrlDownload(req, res, shopifyFileUrl, requestedF
     res.setHeader('Content-Disposition', `attachment; filename="${finalFileName.replace(/[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodedFileName}`);
     res.setHeader('Content-Length', buffer.length);
     
-    console.log('文件下载成功，文件名:', finalFileName);
     return res.status(200).send(buffer);
 
   } catch (error) {
@@ -217,7 +211,6 @@ async function handleShopifyFileUrlDownload(req, res, shopifyFileUrl, requestedF
 // 处理Shopify文件下载
 async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
   try {
-    console.log('开始下载Shopify文件:', { shopifyFileId, fileName });
 
     // 使用 node 查询文件，兼容不同版本 API
     const query = `
@@ -260,8 +253,6 @@ async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
     if (!fileUrl) {
       return res.status(404).json({ error: '文件URL不可用' });
     }
-
-    console.log('文件URL获取成功:', fileUrl);
 
     // 通过我们的服务端中转下载，以便自定义文件名
     const fileResp = await fetch(fileUrl);

@@ -51,14 +51,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('开始获取Draft Orders列表...');
-
     // 检查环境变量 - 支持多种变量名
     const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
     const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
     
     if (!storeDomain || !accessToken) {
-      console.log('环境变量未配置，返回模拟数据');
       
       // 返回模拟数据
       return res.status(200).json({
@@ -114,12 +111,6 @@ export default async function handler(req, res) {
     const requesterEmail = (email || '').trim().toLowerCase();
     const isAdminRequest = ['1', 'true', 'yes'].includes((admin || '').toString().toLowerCase());
 
-    console.log('🔐 权限检查:', {
-      requesterEmail,
-      isAdminRequest,
-      adminWhitelist,
-      isInWhitelist: adminWhitelist.includes(requesterEmail)
-    });
 
     // 认证与授权
     if (!requesterEmail) {
@@ -197,7 +188,6 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    console.log('Shopify API响应:', data);
 
     if (data.errors) {
       console.error('GraphQL错误:', data.errors);
@@ -221,7 +211,6 @@ export default async function handler(req, res) {
         const fileDataAttr = firstLineItem.customAttributes.find(attr => attr.key === '文件数据');
         if (fileDataAttr && fileDataAttr.value && fileDataAttr.value.startsWith('data:')) {
           fileData = fileDataAttr.value;
-          console.log('✅ 从customAttributes提取到文件数据');
         }
       }
 

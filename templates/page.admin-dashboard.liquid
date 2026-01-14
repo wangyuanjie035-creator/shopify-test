@@ -606,12 +606,10 @@
     async function fetchOrders() {
       // 1) 优先从 Vercel 后端读取 Metaobject: quote 列表
       try {
-        console.log('开始获取订单列表...');
         const res = await fetch(`${QUOTES_API_BASE}/quotes`, { headers: { 'Accept': 'application/json' } });
         if (res.ok) {
           const data = await res.json();
           const records = Array.isArray(data) ? data : (data.records || []);
-          console.log('获取到记录数量:', records.length);
           
           const orders = records
             .filter(r => {
@@ -634,11 +632,9 @@
                 time: new Date().toLocaleString('zh-CN'),
                 properties: r
               };
-              console.log('处理订单:', order.id, 'status:', order.status);
               return order;
             });
           
-          console.log('最终订单数量:', orders.length);
           return orders.sort((a, b) => new Date(b.time) - new Date(a.time));
         }
       } catch (error) {
@@ -770,7 +766,6 @@
     // 选择订单
     function selectOrder(orderId) {
       // 这里可以添加订单详情查看功能
-      console.log('选择订单:', orderId);
     }
     
     // 从快速操作打开报价模态框
@@ -813,7 +808,6 @@
             const emailMatch = authorField.value.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
             if (emailMatch) {
               extractedEmail = emailMatch[1];
-              console.log('📧 在 openQuoteModal 中提取到邮箱:', extractedEmail);
             }
           }
         }
@@ -960,8 +954,6 @@
     // 下载订单文件
     async function downloadOrderFile(orderId) {
       try {
-        console.log('开始下载文件，订单ID:', orderId);
-        
         // 从当前订单列表获取文件信息
         const currentOrders = await fetchOrders();
         const order = currentOrders.find(o => o.id === orderId);
@@ -983,12 +975,8 @@
         const invoiceUrl = field('invoice_url');
         const fileName = field('text') || '未知文件';
         
-        console.log('文件信息:', { shopifyFileUrl, shopifyFileId, invoiceUrl, fileName });
-        console.log('完整订单信息:', order);
-        
         // 1) 优先使用 Shopify 文件 URL
         if (shopifyFileUrl && (shopifyFileUrl.startsWith('http://') || shopifyFileUrl.startsWith('https://'))) {
-          console.log('使用 Shopify 文件 URL 下载:', shopifyFileUrl);
           const link = document.createElement('a');
           link.href = shopifyFileUrl;
           link.download = fileName;
@@ -1002,7 +990,6 @@
         // 2) 有文件ID则走后端下载 API（Shopify Files）
         if (shopifyFileId) {
           const dlUrl = `${QUOTES_API_BASE.replace(/\\/api$/, '')}/download-file?shopifyFileId=${encodeURIComponent(shopifyFileId)}&fileName=${encodeURIComponent(fileName)}`;
-          console.log('使用 Shopify 文件ID 下载:', dlUrl);
           window.open(dlUrl, '_blank');
           return;
         }
@@ -1010,7 +997,6 @@
         // 3) 兼容旧逻辑：使用 metaobject invoice_url
         if (invoiceUrl && (invoiceUrl.startsWith('http://') || invoiceUrl.startsWith('https://')) && !invoiceUrl.includes('placeholder.com')) {
           // 有效的 URL，直接下载
-          console.log('使用 HTTP URL 下载:', invoiceUrl);
           const link = document.createElement('a');
           link.href = invoiceUrl;
           link.download = fileName;
@@ -1020,15 +1006,12 @@
           document.body.removeChild(link);
         } else if (invoiceUrl && invoiceUrl.includes('/api/download-file?id=')) {
           // Vercel 文件下载链接，直接打开
-          console.log('使用 Vercel 文件下载链接:', invoiceUrl);
           window.open(invoiceUrl, '_blank');
         } else if (invoiceUrl === 'data:stored') {
           // 文件已存储但无法直接下载
-          console.log('文件已存储但无法直接下载');
           alert(`文件已存储但无法直接下载\n\n原因：由于技术限制，文件数据无法在客服端直接访问。\n\n解决方案：\n1. 联系客户重新上传文件\n2. 或请客户通过邮件发送文件\n3. 或指导客户在购物车页面下载文件后发送给您\n\n订单信息：\n- 文件名：${fileName}\n- 订单ID：${orderId}`);
         } else if (invoiceUrl === 'data:upload_failed' || invoiceUrl === 'data:processing_error' || invoiceUrl === 'data:invalid_url') {
           // 文件上传失败或处理错误
-          console.log('文件上传失败或处理错误:', invoiceUrl);
           const statusText = {
             'data:upload_failed': '文件上传失败',
             'data:processing_error': '文件处理异常',
@@ -1037,11 +1020,9 @@
           alert(`文件下载不可用\n\n原因：${statusText}。\n\n解决方案：\n1. 联系客户重新上传文件\n2. 或请客户通过邮件发送文件\n3. 或指导客户在购物车页面下载文件后发送给您\n\n订单信息：\n- 文件名：${fileName}\n- 订单ID：${orderId}\n- 状态：${statusText}`);
         } else if (invoiceUrl === 'data:unavailable' || invoiceUrl.includes('placeholder.com')) {
           // 文件数据不可用或为占位符
-          console.log('文件数据不可用或为占位符:', invoiceUrl);
           alert(`文件下载不可用\n\n原因：文件数据未正确存储或为占位符链接。\n\n解决方案：\n1. 联系客户重新上传文件\n2. 或请客户通过邮件发送文件\n3. 或指导客户在购物车页面下载文件后发送给您\n\n订单信息：\n- 文件名：${fileName}\n- 订单ID：${orderId}\n- 当前链接：${invoiceUrl}`);
         } else {
           // 其他情况，显示提示信息
-          console.log('文件数据不可用，显示提示信息:', invoiceUrl);
           alert(`文件下载不可用\n\n原因：客服和客户使用不同的浏览器会话，无法直接访问客户购物车中的文件。\n\n解决方案：\n1. 联系客户重新上传文件\n2. 或请客户通过邮件发送文件\n3. 或指导客户在购物车页面下载文件后发送给您\n\n订单信息：\n- 文件名：${fileName}\n- 订单ID：${orderId}\n- 当前链接：${invoiceUrl}`);
         }
       } catch (error) {
@@ -1074,14 +1055,12 @@
         // 从 author 字段提取邮箱地址
         let email = '';
         const authorField = field('author') || '';
-        console.log('📧 原始 author 字段:', authorField);
         
         if (authorField.includes('@')) {
           // 提取邮箱地址（通常在括号前或字段开始）
           const emailMatch = authorField.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
           if (emailMatch) {
             email = emailMatch[1];
-            console.log('✅ 提取到邮箱地址:', email);
           } else {
             console.warn('⚠️ 未找到邮箱地址格式');
           }
@@ -1322,7 +1301,6 @@
           });
           if (res.ok) {
             updateSuccess = true;
-            console.log('后端更新成功');
           } else {
             console.warn('后端更新失败:', await res.text());
           }
@@ -1332,16 +1310,13 @@
 
         // 2) 跳过购物车更新（客服和客户使用不同浏览器）
         let cartUpdateSuccess = false;
-        console.log('跳过购物车更新 - 客服和客户使用不同浏览器会话');
         
         // 3) 发送报价邮件给客户
         let emailSuccess = false;
         if (customerEmail) {
           try {
-            console.log('开始发送邮件:', { from: senderEmail, to: customerEmail });
             await sendQuoteEmail(orderId, customerEmail, senderEmail, files, amount, note);
             emailSuccess = true;
-            console.log('✅ 邮件发送成功');
           } catch (err) {
             console.warn('❌ 邮件发送失败:', err);
           }
@@ -1393,7 +1368,6 @@
     // 发送报价邮件
     async function sendQuoteEmail(orderId, customerEmail, senderEmail, files, amount, note) {
       try {
-        console.log('📧 调用邮件API，参数:', { orderId, customerEmail, senderEmail, files, amount, note });
         
         // 调用邮件 API 生成邮件内容
         const response = await fetch(`${QUOTES_API_BASE}/send-email`, {
@@ -1413,11 +1387,8 @@
           })
         });
 
-        console.log('📧 邮件API响应状态:', response.status);
-
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ 邮件内容生成成功:', result);
           
           // 显示邮件内容对话框，让客服选择发送方式
           showEmailDialog(result);
@@ -1451,10 +1422,7 @@ ${note ? `- 备注：${note}` : ''}
         `.trim();
         
         const mailtoUrl = `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        console.log('📧 备用方案 - 打开邮件客户端:', mailtoUrl);
         window.open(mailtoUrl, '_blank');
-        
-        console.log('✅ 已打开邮件客户端（备用方案）');
       }
     }
 
@@ -1571,7 +1539,6 @@ ${note ? `- 备注：${note}` : ''}
     // 打开邮件客户端
     function openMailClient(mailtoUrl, emailData = null) {
       try {
-        console.log('📧 尝试打开邮件客户端:', mailtoUrl);
         
         // 尝试打开 mailto 链接
         const mailWindow = window.open(mailtoUrl, '_blank');
@@ -1598,7 +1565,6 @@ ${emailInfo}
 
 或者您可以尝试配置浏览器的默认邮件客户端。`);
           } else {
-            console.log('✅ 邮件客户端已打开');
             alert('✅ 邮件客户端已打开！\n\n请在打开的邮件客户端中点击"发送"按钮。');
           }
         }, 1000);
@@ -1635,7 +1601,6 @@ ${emailInfo}
     async function deleteQuote(handle) {
       if (!confirm('确定要删除该报价记录吗？')) return;
       try {
-        console.log('开始删除记录:', handle);
         
         // 使用 DELETE 方法（后端已支持部分匹配）
         const res = await fetch(`${QUOTES_API_BASE}/quotes?handle=${encodeURIComponent(handle)}`, {
@@ -1645,7 +1610,6 @@ ${emailInfo}
           }
         });
         
-        console.log('DELETE 响应状态:', res.status);
         
         if (!res.ok) {
           const t = await res.text();
@@ -1670,12 +1634,9 @@ ${emailInfo}
         }
         
         const result = await res.text();
-        console.log('删除成功:', result);
         
         // 强制刷新订单列表
-        console.log('开始刷新订单列表...');
         await refreshOrders();
-        console.log('订单列表刷新完成');
         
         alert('删除成功！');
       } catch (e) {
@@ -1724,18 +1685,11 @@ ${emailInfo}
         
         if (!item) {
           console.warn('购物车中未找到对应订单，可能客户已清空购物车');
-          console.log('查找的订单ID:', orderId);
-          console.log('购物车中的项目:', cart.items.map(i => ({
-            key: i.key,
-            properties: i.properties
-          })));
           
           // 显示跨浏览器提示
-          console.log('注意：客服和客户使用不同的浏览器会话，无法直接更新客户购物车');
           return; // 不抛出错误，因为这是正常情况
         }
         
-        console.log('找到购物车项目:', item);
         
         // 更新订单状态
         const updateResponse = await fetch('/cart/update.js', {
@@ -1764,7 +1718,6 @@ ${emailInfo}
           throw new Error(`更新订单状态失败: ${errorText}`);
         }
         
-        console.log('购物车状态更新成功');
         
       } catch (error) {
         console.error('更新订单状态失败:', error);

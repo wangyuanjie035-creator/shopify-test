@@ -62,7 +62,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('📥 收到提交询价请求:', req.body || {});
 
     const {
       customerName,
@@ -104,7 +103,6 @@ export default async function handler(req, res) {
     let finalItems;
 
     if (hasFrontendLineItems) {
-      console.log('🔗 使用前端传入 lineItems, 数量:', lineItems.length);
 
       const orderLevelAttrs = [
         { key: '询价单号', value: quoteId },
@@ -141,8 +139,6 @@ export default async function handler(req, res) {
         };
       });
     } else {
-      console.log('🔁 使用旧版单文件模式');
-
       const legacyAttrs = [
         { key: '材料', value: normalize(material, '未指定') },
         { key: '颜色', value: normalize(color, '未指定') },
@@ -168,7 +164,6 @@ export default async function handler(req, res) {
       ];
     }
 
-    console.log('🧾 最终 lineItems 数量:', finalItems.length);
 
     const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
     const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
@@ -220,8 +215,6 @@ export default async function handler(req, res) {
       note: `询价单号: ${quoteId}\n客户: ${name}\n文件: ${fileName || '未提供'}`,
     };
 
-    console.log('📡 draftOrderCreate 入参:', JSON.stringify(input, null, 2));
-
     const resp = await fetch(`https://${storeDomain}/admin/api/2024-01/graphql.json`, {
       method: 'POST',
       headers: {
@@ -232,8 +225,7 @@ export default async function handler(req, res) {
     });
 
     const data = await resp.json();
-    console.log('Shopify draftOrderCreate 响应:', JSON.stringify(data, null, 2));
-
+    
     if (data.errors && data.errors.length) {
       throw new Error(data.errors[0].message || 'DraftOrder 创建失败');
     }

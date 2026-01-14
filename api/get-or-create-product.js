@@ -46,8 +46,6 @@ export default async function handler(req, res) {
         }
       }
     `;
-
-    console.log('🔍 搜索现有产品...');
     
     const searchResponse = await fetch(graphqlEndpoint, {
       method: 'POST',
@@ -64,13 +62,10 @@ export default async function handler(req, res) {
     });
 
     const searchResult = await searchResponse.json();
-    console.log('搜索结果:', searchResult);
 
     if (searchResult.data?.products?.edges?.length > 0) {
       const product = searchResult.data.products.edges[0].node;
       const variantId = product.variants.edges[0].node.id;
-      
-      console.log('✅ 找到现有产品:', product.title, '变体ID:', variantId);
       
       return res.status(200).json({
         success: true,
@@ -81,8 +76,6 @@ export default async function handler(req, res) {
     }
 
     // 如果没有找到，创建新产品
-    console.log('📦 创建新产品...');
-    
     const createProductMutation = `
       mutation productCreate($input: ProductInput!) {
         productCreate(input: $input) {
@@ -135,7 +128,6 @@ export default async function handler(req, res) {
     });
 
     const createResult = await createResponse.json();
-    console.log('创建结果:', createResult);
 
     if (createResult.data?.productCreate?.userErrors?.length > 0) {
       throw new Error(`创建产品失败: ${createResult.data.productCreate.userErrors.map(e => e.message).join(', ')}`);
@@ -143,8 +135,6 @@ export default async function handler(req, res) {
 
     const newProduct = createResult.data.productCreate.product;
     const variantId = newProduct.variants.edges[0].node.id;
-
-    console.log('✅ 新产品创建成功:', newProduct.title, '变体ID:', variantId);
 
     return res.status(200).json({
       success: true,

@@ -44,8 +44,6 @@ export default async function handler(req, res) {
     const shopifyDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
     const graphqlEndpoint = `https://${shopifyDomain}/admin/api/2024-01/graphql.json`;
 
-    console.log('🔄 开始完成草稿订单:', draftOrderId);
-
     // 完成草稿订单
     const completeDraftOrderMutation = `
       mutation draftOrderComplete($id: ID!, $paymentPending: Boolean) {
@@ -82,7 +80,6 @@ export default async function handler(req, res) {
     });
 
     const completeResult = await completeResponse.json();
-    console.log('📋 完成草稿订单结果:', completeResult);
 
     const userErrors = completeResult.data?.draftOrderComplete?.userErrors || [];
     const completedDraftOrder = completeResult.data?.draftOrderComplete?.draftOrder;

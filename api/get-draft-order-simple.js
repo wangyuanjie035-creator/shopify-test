@@ -81,8 +81,6 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
   }
 
   try {
-    console.log('查找询价单:', id);
-    
     let draftOrder = null;
     
     // 如果是GID格式，直接查询
