@@ -1155,11 +1155,36 @@
         return;
       }
       
-      // 刷新订单列表，更新界面状态
-      loadOrders();
-      
-      // 显示成功提示
-      alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n📧 客户邮箱: ${customerEmail}\n\n订单状态已更新，客户在询价页面可以看到无法加工的原因和建议。`);
+      // 步骤2: 自动发送通知邮件给客户
+      try {
+        const emailResponse = await fetch(`${API_BASE}/send-unprocessable-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            draftOrderId: orderId,
+            reason: reason,
+            suggestion: suggestion,
+            orderName: orderName
+          })
+        });
+        
+        const emailData = await emailResponse.json();
+        
+        // 刷新订单列表，更新界面状态
+        loadOrders();
+        
+        if (emailData.success) {
+          alert(`✅ 订单已标记为"无法加工"，通知邮件已发送！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n\n客户已收到包含原因和建议的通知邮件。`);
+        } else {
+          alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n\n⚠️ 邮件发送失败: ${emailData.message || '未知错误'}\n\n客户仍可在询价页面查看无法加工的原因和建议。`);
+        }
+      } catch (emailError) {
+        // 邮件发送失败不影响订单状态更新
+        loadOrders();
+        alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n\n⚠️ 邮件发送失败: ${emailError.message}\n\n客户仍可在询价页面查看无法加工的原因和建议。`);
+      }
       
     } catch (error) {
       console.error('标记订单为无法加工失败:', error);
