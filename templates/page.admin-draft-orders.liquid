@@ -418,6 +418,11 @@
     color: #155724;
   }
 
+  .status-unprocessable {
+    background: #fff3cd;
+    color: #856404;
+  }
+
 
   .order-info {
     display: grid;
@@ -626,6 +631,15 @@
   .action-btn.email:hover {
     background: #219a52;
   }
+
+  .action-btn.reject {
+    background: #ff9800;
+    color: white;
+  }
+
+  .action-btn.reject:hover {
+    background: #f57c00;
+  }
 </style>
 
 <script>
@@ -768,6 +782,14 @@
   
   // 获取订单状态文本
   function getOrderStatusText(order) {
+    // 检查订单自定义属性中的状态
+    if (order.lineItems && order.lineItems.length > 0) {
+      const attrs = order.lineItems[0].customAttributes || [];
+      const statusAttr = attrs.find(a => a.key === '状态');
+      if (statusAttr && statusAttr.value === '无法加工') {
+        return '无法加工';
+      }
+    }
     return order.status === 'pending' ? '待报价' : '已报价';
   }
 
@@ -791,19 +813,37 @@
       console.log('draftOrders长度:', data.draftOrders ? data.draftOrders.length : 'undefined');
       
       if (data.success && data.draftOrders) {
-        currentOrders = data.draftOrders.map(order => ({
-          id: order.id,
-          name: order.name,
-          email: order.email,
-          status: order.status === 'pending' ? 'pending' : 'quoted',
-          totalPrice: order.totalPrice,
-          createdAt: order.createdAt,
-          invoiceUrl: order.invoiceUrl,
-          fileId: order.fileId,
-          fileData: order.fileData,
-          note: order.note,
-          lineItems: order.lineItems
-        }));
+        currentOrders = data.draftOrders.map(order => {
+          // 检查订单状态（包括"无法加工"）
+          let orderStatus = 'pending';
+          if (order.lineItems && order.lineItems.length > 0) {
+            const attrs = order.lineItems[0].customAttributes || [];
+            const statusAttr = attrs.find(a => a.key === '状态');
+            if (statusAttr) {
+              if (statusAttr.value === '已报价' || statusAttr.value === '无法加工') {
+                orderStatus = 'quoted'; // "无法加工"也归类为已处理状态
+              }
+            } else if (order.status === 'quoted') {
+              orderStatus = 'quoted';
+            }
+          } else if (order.status === 'quoted') {
+            orderStatus = 'quoted';
+          }
+          
+          return {
+            id: order.id,
+            name: order.name,
+            email: order.email,
+            status: orderStatus,
+            totalPrice: order.totalPrice,
+            createdAt: order.createdAt,
+            invoiceUrl: order.invoiceUrl,
+            fileId: order.fileId,
+            fileData: order.fileData,
+            note: order.note,
+            lineItems: order.lineItems
+          };
+        });
         
         console.log('处理后的订单:', currentOrders);
         console.log('实际渲染的订单数量:', currentOrders.length);
@@ -914,7 +954,11 @@
       <div class="order-item">
         <div class="order-header">
           <div class="order-id">${order.name}</div>
-          <div class="order-status status-${order.status}">
+          <div class="order-status ${(() => {
+            const statusText = getOrderStatusText(order);
+            if (statusText === '无法加工') return 'status-unprocessable';
+            return order.status === 'pending' ? 'status-pending' : 'status-quoted';
+          })()}">
             ${getOrderStatusText(order)}
           </div>
         </div>
@@ -1001,6 +1045,9 @@
           ${order.status === 'pending' ? `
             <button class="action-btn quote" onclick="openQuoteModal('${order.id}', '${order.email}', '${order.name}')">
               💰 添加报价
+            </button>
+            <button class="action-btn reject" onclick="markAsUnprocessable('${order.id}', '${order.email}', '${order.name}')" title="标记为无法加工">
+              ⚠️ 无法加工
             </button>
           ` : `
             <button class="action-btn" onclick="viewQuote('${order.id}')">
@@ -1108,6 +1155,83 @@
   function viewQuote(orderId) {
     // 跳转到询价详情页面
     window.open(`/pages/my-quotes?id=${orderId}`, '_blank');
+  }
+
+  // 标记订单为无法加工并发送邮件
+  async function markAsUnprocessable(orderId, customerEmail, orderName) {
+    try {
+      // 弹出对话框让管理员输入原因和修改建议
+      const reason = prompt('请输入无法加工的原因：\n\n例如：零件尺寸超出加工范围、材料不符合要求等');
+      if (!reason || reason.trim() === '') {
+        return;
+      }
+      
+      const suggestion = prompt('请输入修改建议：\n\n例如：请将尺寸调整为XX以内、请更换为XX材料等');
+      if (!suggestion || suggestion.trim() === '') {
+        return;
+      }
+      
+      // 确认操作
+      if (!confirm(`确认标记订单为"无法加工"并发送邮件给客户？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n原因: ${reason}\n建议: ${suggestion}`)) {
+        return;
+      }
+      
+      console.log('开始标记订单为无法加工:', { orderId, customerEmail, orderName, reason, suggestion });
+      
+      // 步骤1: 更新订单状态为"无法加工"
+      const updateResponse = await fetch(`${API_BASE}/update-quote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          draftOrderId: orderId,
+          amount: 0, // 无法加工时价格设为0
+          note: `无法加工\n\n原因: ${reason}\n修改建议: ${suggestion}`,
+          status: '无法加工' // 特殊状态标记
+        })
+      });
+      
+      const updateData = await updateResponse.json();
+      console.log('更新订单状态响应:', updateData);
+      
+      if (!updateData.success) {
+        alert('❌ 更新订单状态失败: ' + (updateData.message || '未知错误'));
+        return;
+      }
+      
+      // 步骤2: 通过本地邮件客户端发送说明邮件（避免触发 Shopify 的付款链接邮件）
+      const subject = encodeURIComponent(`关于您的询价订单 ${orderName}：暂时无法加工`);
+      const bodyLines = [
+        `尊敬的客户，您好：`,
+        ``,
+        `很抱歉通知您，您的询价订单暂时无法加工。`,
+        ``,
+        `订单号：${orderName}`,
+        ``,
+        `无法加工的原因：`,
+        reason,
+        ``,
+        `修改建议：`,
+        suggestion,
+        ``,
+        `请您根据以上建议调整后重新提交询价，如有疑问欢迎直接回复此邮件与我们联系。`,
+        ``,
+        `感谢您的理解与配合！`
+      ];
+      const body = encodeURIComponent(bodyLines.join('\n'));
+
+      // 打开本地邮件客户端，由客服确认后发送，内容不会包含任何支付链接
+      const mailtoUrl = `mailto:${encodeURIComponent(customerEmail)}?subject=${subject}&body=${body}`;
+      window.location.href = mailtoUrl;
+
+      alert(`✅ 订单已标记为"无法加工"，并已为您生成邮件草稿。\n\n📧 收件人: ${customerEmail}\n📋 订单号: ${orderName}\n\n请在邮件客户端确认内容后发送给客户。`);
+      loadOrders(); // 重新加载订单列表
+      
+    } catch (error) {
+      console.error('标记订单为无法加工失败:', error);
+      alert('❌ 操作失败: ' + error.message);
+    }
   }
 
   // 发送发票邮件

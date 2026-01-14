@@ -230,8 +230,10 @@ export default async function handler(req, res) {
       if (order.lineItems.edges.length > 0) {
         const firstLineItem = order.lineItems.edges[0].node;
         const statusAttr = firstLineItem.customAttributes.find(attr => attr.key === '状态');
-        if (statusAttr && statusAttr.value === '已报价') {
-          orderStatus = 'quoted';
+        if (statusAttr) {
+          if (statusAttr.value === '已报价' || statusAttr.value === '无法加工') {
+            orderStatus = 'quoted'; // "无法加工"也归类为已处理状态
+          }
         }
       }
 

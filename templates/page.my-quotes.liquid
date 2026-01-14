@@ -378,7 +378,39 @@
     background: #d4edda;
     color: #155724;
   }
-  
+
+  .status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  /* 无法加工提示 */
+  .unprocessable-banner {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .unprocessable-banner-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .unprocessable-banner-title span.icon {
+    font-size: 18px;
+  }
+
+  .unprocessable-banner p {
+    margin: 2px 0;
+  }
   
   .quote-items {
     background: white;
@@ -615,6 +647,9 @@
         </div>
       </div>
     </div>
+
+    <!-- 无法加工原因与建议 -->
+    <div id="unprocessable-reason" class="unprocessable-banner" style="display:none;"></div>
     
     <div class="quote-items">
       <div class="section-title">订单项目</div>
@@ -859,6 +894,57 @@ function renderOrderDetails(order) {
   const status = getOrderStatus(order);
   statusEl.textContent = status.text;
   statusEl.className = `quote-status ${status.className}`;
+
+  // 如果是"无法加工"，在前端展示原因和修改建议（从备注中读取）
+  const unprocessableEl = document.getElementById('unprocessable-reason');
+  if (status.text === '无法加工' && order.lineItems && order.lineItems.length > 0) {
+    const firstItem = order.lineItems[0];
+    const attrs = firstItem.customAttributes || [];
+    const noteAttr = attrs.find(a => a.key === '备注');
+
+    if (noteAttr && noteAttr.value) {
+      // 备注格式形如：无法加工\n\n原因: xxx\n修改建议: yyy
+      const raw = noteAttr.value;
+      let reasonText = '';
+      let suggestionText = '';
+
+      try {
+        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const reasonLine = lines.find(l => l.startsWith('原因'));
+        const suggestionLine = lines.find(l => l.startsWith('修改建议'));
+        if (reasonLine) {
+          reasonText = reasonLine.replace(/^原因[:：]?\s*/, '');
+        }
+        if (suggestionLine) {
+          suggestionText = suggestionLine.replace(/^修改建议[:：]?\s*/, '');
+        }
+      } catch (e) {
+        console.warn('解析无法加工备注失败，使用原文展示:', e);
+      }
+
+      const finalReason = reasonText || raw;
+
+      unprocessableEl.innerHTML = `
+        <div class="unprocessable-banner-title">
+          <span class="icon">⚠️</span>
+          <span>该订单当前暂无法加工</span>
+        </div>
+        <p><strong>原因：</strong>${finalReason}</p>
+        ${suggestionText ? `<p><strong>修改建议：</strong>${suggestionText}</p>` : ''}
+        <p>如有疑问，请联系平台客服或回复我们的通知邮件。</p>
+      `;
+      unprocessableEl.style.display = 'block';
+    } else {
+      unprocessableEl.style.display = 'none';
+      unprocessableEl.innerHTML = '';
+    }
+  } else {
+    // 其他状态隐藏提示
+    if (unprocessableEl) {
+      unprocessableEl.style.display = 'none';
+      unprocessableEl.innerHTML = '';
+    }
+  }
   
   // 更新日期
   const dateEl = document.getElementById('order-date');
@@ -997,23 +1083,39 @@ function updatePrices(order) {
   console.log('价格显示:', formattedPrice);
 }
 
-// 更新按钮状态
+  // 更新按钮状态
 function updateButtonState(order) {
   const placeOrderBtn = document.getElementById('place-order-btn');
   
-  // 检查是否已报价
-  let isQuoted = false;
-  
   // 优先检查自定义属性中的状态
+  let orderStatus = null;
   if (order.lineItems && order.lineItems.length > 0) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
     const statusAttr = attrs.find(a => a.key === '状态');
     
-    if (statusAttr && statusAttr.value === '已报价') {
-      isQuoted = true;
-      console.log('✅ 从自定义属性确认已报价');
+    if (statusAttr) {
+      orderStatus = statusAttr.value;
+      console.log('从自定义属性获取状态:', orderStatus);
     }
+  }
+  
+  // 检查是否为"无法加工"状态
+  if (orderStatus === '无法加工') {
+    placeOrderBtn.disabled = true;
+    placeOrderBtn.textContent = '无法加工';
+    placeOrderBtn.style.opacity = '0.6';
+    placeOrderBtn.style.cursor = 'not-allowed';
+    console.log('❌ 按钮状态: 无法加工（禁用）');
+    return;
+  }
+  
+  // 检查是否已报价
+  let isQuoted = false;
+  
+  if (orderStatus === '已报价') {
+    isQuoted = true;
+    console.log('✅ 从自定义属性确认已报价');
   }
   
   // 回退到检查totalPrice
@@ -1056,6 +1158,11 @@ function getOrderStatus(order) {
         return {
           text: '已报价',
           className: 'status-quoted'
+        };
+      } else if (status === '无法加工') {
+        return {
+          text: '无法加工',
+          className: 'status-rejected'
         };
       }
     }
