@@ -104,7 +104,7 @@ export default async function handler(req, res) {
     const { status, limit = 50, email, admin } = req.query;
 
     // 管理员白名单（逗号分隔，环境变量 ADMIN_EMAIL_WHITELIST）
-    const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com,kitto.chen@sainstore.com,cherry@sain3.com')
+    const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com,kitto.chen@sainstore.com,cherry@sain3.com, keihen.luo@sain3.com')
       .split(',')
       .map(e => e.trim().toLowerCase())
       .filter(Boolean);

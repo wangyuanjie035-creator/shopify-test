@@ -73,7 +73,7 @@
     {%- endcomment -%}
     <script>
       (() => {
-        const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com', 'issac.yu@sainstore.com','kitto.chen@sainstore.com','cherry@sain3.com'];
+        const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'jonthan.wang@gmail.com', 'issac.yu@sainstore.com','kitto.chen@sainstore.com','cherry@sain3.com', 'keihen.luo@sain3.com'];
         const customerEmail = ({{ customer.email | json }} || '').toLowerCase();
         const isAdmin = ADMIN_EMAILS.includes(customerEmail);
 
