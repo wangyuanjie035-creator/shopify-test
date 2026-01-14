@@ -1176,12 +1176,17 @@
       ];
       const body = encodeURIComponent(bodyLines.join('\n'));
 
-      // 打开本地邮件客户端，由客服确认后发送，内容不会包含任何支付链接
-      const mailtoUrl = `mailto:${encodeURIComponent(customerEmail)}?subject=${subject}&body=${body}`;
-      window.location.href = mailtoUrl;
-
-      alert(`✅ 订单已标记为"无法加工"，并已为您生成邮件草稿。\n\n📧 收件人: ${customerEmail}\n📋 订单号: ${orderName}\n\n请在邮件客户端确认内容后发送给客户。`);
-      loadOrders(); // 重新加载订单列表
+      // 先刷新订单列表，更新界面状态
+      loadOrders();
+      
+      // 显示成功提示，并询问是否要发送邮件
+      const sendEmail = confirm(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n📧 客户邮箱: ${customerEmail}\n\n订单状态已更新，客户在询价页面可以看到无法加工的原因和建议。\n\n是否要打开邮件客户端发送通知邮件给客户？\n\n点击"确定"打开邮件客户端，点击"取消"跳过。`);
+      
+      if (sendEmail) {
+        // 打开邮件客户端（会在新标签页或当前窗口打开，取决于浏览器设置）
+        const mailtoUrl = `mailto:${encodeURIComponent(customerEmail)}?subject=${subject}&body=${body}`;
+        window.location.href = mailtoUrl;
+      }
       
     } catch (error) {
       console.error('标记订单为无法加工失败:', error);

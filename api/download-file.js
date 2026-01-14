@@ -244,6 +244,8 @@ async function handleShopifyFileDownload(req, res, shopifyFileId, fileName) {
     let fileUrl = null;
 
     // 获取文件URL
+
+    
     if (file.url) {
       fileUrl = file.url;
     } else if (file.image && file.image.url) {
