@@ -80,6 +80,8 @@ export default async function handler(req, res) {
       required: ['draftOrderId']
     });
   }
+  
+  // reason 和 suggestion 是可选的，如果没有提供，会从订单备注中提取
 
   try {
     // ═══════════════════════════════════════════════════════════
@@ -95,6 +97,16 @@ export default async function handler(req, res) {
           invoiceUrl
           totalPrice
           note
+          lineItems(first: 10) {
+            edges {
+              node {
+                customAttributes {
+                  key
+                  value
+                }
+              }
+            }
+          }
         }
       }
     `;
@@ -114,7 +126,57 @@ export default async function handler(req, res) {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 步骤 2: 更新订单备注，包含无法加工的原因和建议
+    // 步骤 2: 提取或使用原因和建议
+    // ═══════════════════════════════════════════════════════════
+    
+    let finalReason = reason;
+    let finalSuggestion = suggestion;
+    
+    // 如果没有提供 reason 和 suggestion，尝试从订单备注或自定义属性中提取
+    if (!finalReason || !finalSuggestion) {
+      // 优先从 lineItems 的自定义属性中提取
+      if (draftOrder.lineItems && draftOrder.lineItems.edges.length > 0) {
+        const firstItem = draftOrder.lineItems.edges[0].node;
+        const attrs = firstItem.customAttributes || [];
+        const noteAttr = attrs.find(a => a.key === '备注');
+        
+        if (noteAttr && noteAttr.value) {
+          const note = noteAttr.value;
+          // 解析备注格式：无法加工\n\n原因: xxx\n修改建议: yyy
+          const lines = note.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          const reasonLine = lines.find(l => l.startsWith('原因') || l.startsWith('无法加工的原因'));
+          const suggestionLine = lines.find(l => l.startsWith('修改建议') || l.startsWith('建议'));
+          
+          if (reasonLine && !finalReason) {
+            finalReason = reasonLine.replace(/^(原因|无法加工的原因)[:：]?\s*/, '').trim();
+          }
+          if (suggestionLine && !finalSuggestion) {
+            finalSuggestion = suggestionLine.replace(/^(修改建议|建议)[:：]?\s*/, '').trim();
+          }
+        }
+      }
+      
+      // 如果还是没有，尝试从订单的 note 字段提取
+      if ((!finalReason || !finalSuggestion) && draftOrder.note) {
+        const note = draftOrder.note;
+        const reasonMatch = note.match(/原因[:：]?\s*(.+?)(?:\n|$)/);
+        const suggestionMatch = note.match(/修改建议[:：]?\s*(.+?)(?:\n|$)/);
+        
+        if (reasonMatch && !finalReason) {
+          finalReason = reasonMatch[1].trim();
+        }
+        if (suggestionMatch && !finalSuggestion) {
+          finalSuggestion = suggestionMatch[1].trim();
+        }
+      }
+    }
+    
+    // 如果仍然没有，使用默认值
+    finalReason = finalReason || '未提供原因';
+    finalSuggestion = finalSuggestion || '未提供建议';
+
+    // ═══════════════════════════════════════════════════════════
+    // 步骤 3: 更新订单备注，包含无法加工的原因和建议（如果还没有）
     // ═══════════════════════════════════════════════════════════
     
     // 构建邮件内容（会在发票邮件中显示）
@@ -125,10 +187,10 @@ export default async function handler(req, res) {
 很抱歉通知您，您的询价订单暂时无法加工。
 
 无法加工的原因：
-${reason || '未提供原因'}
+${finalReason}
 
 修改建议：
-${suggestion || '未提供建议'}
+${finalSuggestion}
 
 请您根据以上建议调整后重新提交询价，如有疑问欢迎直接回复此邮件与我们联系。
 

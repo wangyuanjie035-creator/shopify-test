@@ -1130,7 +1130,7 @@
       }
       
       // 确认操作
-      if (!confirm(`确认标记订单为"无法加工"并发送邮件给客户？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n原因: ${reason}\n建议: ${suggestion}`)) {
+      if (!confirm(`确认标记订单为"无法加工"？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n原因: ${reason}\n建议: ${suggestion}\n\n标记后，您可以通过"发送邮件"按钮通知客户。`)) {
         return;
       }
       
@@ -1155,9 +1155,83 @@
         return;
       }
       
-      // 步骤2: 自动发送通知邮件给客户
-      try {
-        const emailResponse = await fetch(`${API_BASE}/send-unprocessable-email`, {
+      // 刷新订单列表，更新界面状态
+      loadOrders();
+      
+      // 显示成功提示
+      alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n📧 客户邮箱: ${customerEmail}\n\n订单状态已更新，您可以通过"发送邮件"按钮通知客户。`);
+      
+    } catch (error) {
+      console.error('标记订单为无法加工失败:', error);
+      alert('❌ 操作失败: ' + error.message);
+    }
+  }
+
+  // 检测订单是否为"无法加工"状态
+  function isUnprocessableOrder(orderId) {
+    const order = currentOrders.find(o => o.id === orderId);
+    if (!order) return false;
+    
+    if (order.lineItems && order.lineItems.length > 0) {
+      const attrs = order.lineItems[0].customAttributes || [];
+      const statusAttr = attrs.find(a => a.key === '状态');
+      if (statusAttr && statusAttr.value === '无法加工') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 发送邮件（根据订单状态自动选择API）
+  async function sendInvoiceEmail(orderId, customerEmail, orderName) {
+    try {
+      // 检测订单状态
+      const isUnprocessable = isUnprocessableOrder(orderId);
+      
+      // 根据状态显示不同的确认提示
+      let confirmMsg = '';
+      if (isUnprocessable) {
+        confirmMsg = `确认向客户发送"无法加工"通知邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含无法加工的原因和修改建议。`;
+      } else {
+        confirmMsg = `确认向客户发送发票邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含结账链接和订单详情。`;
+      }
+      
+      if (!confirm(confirmMsg)) {
+        return;
+      }
+      
+      let response;
+      let data;
+      
+      if (isUnprocessable) {
+        // 无法加工订单：调用无法加工邮件API
+        // 需要从订单中获取原因和建议
+        const order = currentOrders.find(o => o.id === orderId);
+        let reason = '';
+        let suggestion = '';
+        
+        if (order && order.lineItems && order.lineItems.length > 0) {
+          const attrs = order.lineItems[0].customAttributes || [];
+          const noteAttr = attrs.find(a => a.key === '备注');
+          
+          if (noteAttr && noteAttr.value) {
+            // 解析备注中的原因和建议
+            // 备注格式：无法加工\n\n原因: xxx\n修改建议: yyy
+            const note = noteAttr.value;
+            const lines = note.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              if (line.startsWith('原因') || line.startsWith('无法加工的原因')) {
+                reason = line.replace(/^(原因|无法加工的原因)[:：]?\s*/, '').trim();
+              } else if (line.startsWith('修改建议') || line.startsWith('建议')) {
+                suggestion = line.replace(/^(修改建议|建议)[:：]?\s*/, '').trim();
+              }
+            }
+          }
+        }
+        
+        response = await fetch(`${API_BASE}/send-unprocessable-email`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -1170,53 +1244,33 @@
           })
         });
         
-        const emailData = await emailResponse.json();
+        data = await response.json();
         
-        // 刷新订单列表，更新界面状态
-        loadOrders();
-        
-        if (emailData.success) {
-          alert(`✅ 订单已标记为"无法加工"，通知邮件已发送！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n\n客户已收到包含原因和建议的通知邮件。`);
+        if (data.success) {
+          alert(`✅ 通知邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n\n客户已收到包含原因和建议的通知邮件。`);
         } else {
-          alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n\n⚠️ 邮件发送失败: ${emailData.message || '未知错误'}\n\n客户仍可在询价页面查看无法加工的原因和建议。`);
+          alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
         }
-      } catch (emailError) {
-        // 邮件发送失败不影响订单状态更新
-        loadOrders();
-        alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n\n⚠️ 邮件发送失败: ${emailError.message}\n\n客户仍可在询价页面查看无法加工的原因和建议。`);
-      }
-      
-    } catch (error) {
-      console.error('标记订单为无法加工失败:', error);
-      alert('❌ 操作失败: ' + error.message);
-    }
-  }
-
-  // 发送发票邮件
-  async function sendInvoiceEmail(orderId, customerEmail, orderName) {
-    try {
-      // 确认发送
-      if (!confirm(`确认向客户发送发票邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含结账链接和订单详情。`)) {
-        return;
-      }
-      
-      const response = await fetch(`${API_BASE}/send-invoice-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          draftOrderId: orderId,
-          customMessage: `您的3D打印报价已完成！\n\n订单号: ${orderName}\n请点击下方的结账链接查看详情并完成付款。\n\n如有任何问题，请联系我们的客服团队。\n\n感谢您选择我们的服务！`
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert(`✅ 发票邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n💰 金额: $${data.totalPrice}\n🔗 结账链接: ${data.invoiceUrl}`);
       } else {
-        alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
+        // 已报价订单：调用发票邮件API
+        response = await fetch(`${API_BASE}/send-invoice-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            draftOrderId: orderId,
+            customMessage: `您的3D打印报价已完成！\n\n订单号: ${orderName}\n请点击下方的结账链接查看详情并完成付款。\n\n如有任何问题，请联系我们的客服团队。\n\n感谢您选择我们的服务！`
+          })
+        });
+        
+        data = await response.json();
+        
+        if (data.success) {
+          alert(`✅ 发票邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n💰 金额: $${data.totalPrice}\n🔗 结账链接: ${data.invoiceUrl}`);
+        } else {
+          alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
+        }
       }
       
     } catch (error) {
@@ -1752,25 +1806,7 @@
         });
       }
       
-      // 先清理文件（如果存在）
-      if (fileId) {
-        try {
-          await fetch(`${API_BASE}/cleanup-files`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              orderId: orderId,
-              fileId: fileId
-            })
-          });
-        } catch (cleanupError) {
-          console.warn('文件清理失败，继续删除订单:', cleanupError);
-        }
-      }
-      
-      // 删除Draft Order
+      // 删除Draft Order（文件会随订单一起删除）
       const response = await fetch(`${API_BASE}/delete-draft-order`, {
         method: 'DELETE',
         headers: {
