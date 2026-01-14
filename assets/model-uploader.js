@@ -1,3 +1,4 @@
+//model-uploader.js
 /**
  * 3D Model Uploader - Complete Multi-File Version
  * 支持多文件独立管理、ZIP解压、完整错误反馈
