@@ -1155,37 +1155,30 @@
         return;
       }
       
-      // 步骤2: 通过本地邮件客户端发送说明邮件（避免触发 Shopify 的付款链接邮件）
-      const subject = encodeURIComponent(`关于您的询价订单 ${orderName}：暂时无法加工`);
-      const bodyLines = [
-        `尊敬的客户，您好：`,
-        ``,
-        `很抱歉通知您，您的询价订单暂时无法加工。`,
-        ``,
-        `订单号：${orderName}`,
-        ``,
-        `无法加工的原因：`,
-        reason,
-        ``,
-        `修改建议：`,
-        suggestion,
-        ``,
-        `请您根据以上建议调整后重新提交询价，如有疑问欢迎直接回复此邮件与我们联系。`,
-        ``,
-        `感谢您的理解与配合！`
-      ];
-      const body = encodeURIComponent(bodyLines.join('\n'));
-
-      // 先刷新订单列表，更新界面状态
+      // 步骤2: 通过API发送通知邮件给客户
+      const emailResponse = await fetch(`${API_BASE}/send-invoice-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          draftOrderId: orderId,
+          emailType: 'unprocessable', // 标识这是"无法加工"通知邮件
+          reason: reason,
+          suggestion: suggestion,
+          orderName: orderName
+        })
+      });
+      
+      const emailData = await emailResponse.json();
+      
+      // 刷新订单列表，更新界面状态
       loadOrders();
       
-      // 显示成功提示，并询问是否要发送邮件
-      const sendEmail = confirm(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n📧 客户邮箱: ${customerEmail}\n\n订单状态已更新，客户在询价页面可以看到无法加工的原因和建议。\n\n是否要打开邮件客户端发送通知邮件给客户？\n\n点击"确定"打开邮件客户端，点击"取消"跳过。`);
-      
-      if (sendEmail) {
-        // 打开邮件客户端（会在新标签页或当前窗口打开，取决于浏览器设置）
-        const mailtoUrl = `mailto:${encodeURIComponent(customerEmail)}?subject=${subject}&body=${body}`;
-        window.location.href = mailtoUrl;
+      if (emailData.success) {
+        alert(`✅ 订单已标记为"无法加工"，通知邮件已发送！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n\n客户已收到包含原因和建议的通知邮件。`);
+      } else {
+        alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n\n⚠️ 邮件发送失败: ${emailData.message || '未知错误'}\n\n客户仍可在询价页面查看无法加工的原因和建议。`);
       }
       
     } catch (error) {
