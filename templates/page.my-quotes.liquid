@@ -683,7 +683,7 @@
 // API配置
 const API_BASE = 'https://shopify-v587.vercel.app/api';
 const customerEmail = (document.querySelector('.customer-authenticated')?.dataset.customerEmail || '').toLowerCase();
-const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'issac.yu@sainstore.com','kitto.chen@sainstore.com','cherry@sain3.com', 'keihen.luo@sain3.com'];
+const ADMIN_EMAILS = ['jonathan.wang@sainstore.com', 'issac.yu@sainstore.com','kitto.chen@sainstore.com','cherry@sain3.com', 'keihen.luo@sain3.com','nancy.lin@sainstore.com'];
 const isAdmin = ADMIN_EMAILS.some(e => e.toLowerCase() === customerEmail);
 const authParams = () => isAdmin
   ? `admin=1&email=${encodeURIComponent(customerEmail)}`
