@@ -1010,14 +1010,20 @@
             <button class="action-btn reject" onclick="markAsUnprocessable('${order.id}', '${order.email}', '${order.name}')" title="标记为无法加工">
               ⚠️ 无法加工
             </button>
-          ` : `
-            <button class="action-btn" onclick="viewQuote('${order.id}')">
-              👁️ 查看报价
-            </button>
-            <button class="action-btn email" onclick="sendInvoiceEmail('${order.id}', '${order.email}', '${order.name}')" title="发送发票邮件">
-              📧 发送邮件
-            </button>
-          `}
+          ` : (() => {
+            const statusText = getOrderStatusText(order);
+            const isUnprocessable = statusText === '无法加工';
+            return `
+              <button class="action-btn" onclick="viewQuote('${order.id}')">
+                👁️ 查看报价
+              </button>
+              ${!isUnprocessable ? `
+                <button class="action-btn email" onclick="sendInvoiceEmail('${order.id}', '${order.email}', '${order.name}')" title="发送发票邮件">
+                  📧 发送邮件
+                </button>
+              ` : ''}
+            `;
+          })()}
           <button class="action-btn guide" onclick="showCustomerGuide('${order.id}', '${order.email}')" title="客户操作指南">
             📋
           </button>
@@ -1115,7 +1121,7 @@
     window.open(`/pages/my-quotes?id=${orderId}`, '_blank');
   }
 
-  // 标记订单为无法加工并发送邮件
+  // 标记订单为无法加工
   async function markAsUnprocessable(orderId, customerEmail, orderName) {
     try {
       // 弹出对话框让管理员输入原因和修改建议
@@ -1130,7 +1136,7 @@
       }
       
       // 确认操作
-      if (!confirm(`确认标记订单为"无法加工"？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n原因: ${reason}\n建议: ${suggestion}\n\n标记后，您可以通过"发送邮件"按钮通知客户。`)) {
+      if (!confirm(`确认标记订单为"无法加工"？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n原因: ${reason}\n建议: ${suggestion}`)) {
         return;
       }
       
@@ -1159,7 +1165,7 @@
       loadOrders();
       
       // 显示成功提示
-      alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n📧 客户邮箱: ${customerEmail}\n\n订单状态已更新，您可以通过"发送邮件"按钮通知客户。`);
+      alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n📧 客户邮箱: ${customerEmail}\n\n订单状态已更新，客户可在询价页面查看无法加工的原因和建议。`);
       
     } catch (error) {
       console.error('标记订单为无法加工失败:', error);
@@ -1167,110 +1173,31 @@
     }
   }
 
-  // 检测订单是否为"无法加工"状态
-  function isUnprocessableOrder(orderId) {
-    const order = currentOrders.find(o => o.id === orderId);
-    if (!order) return false;
-    
-    if (order.lineItems && order.lineItems.length > 0) {
-      const attrs = order.lineItems[0].customAttributes || [];
-      const statusAttr = attrs.find(a => a.key === '状态');
-      if (statusAttr && statusAttr.value === '无法加工') {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // 发送邮件（根据订单状态自动选择API）
+  // 发送发票邮件（仅用于已报价订单）
   async function sendInvoiceEmail(orderId, customerEmail, orderName) {
     try {
-      // 检测订单状态
-      const isUnprocessable = isUnprocessableOrder(orderId);
-      
-      // 根据状态显示不同的确认提示
-      let confirmMsg = '';
-      if (isUnprocessable) {
-        confirmMsg = `确认向客户发送"无法加工"通知邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含无法加工的原因和修改建议。`;
-      } else {
-        confirmMsg = `确认向客户发送发票邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含结账链接和订单详情。`;
-      }
-      
-      if (!confirm(confirmMsg)) {
+      // 确认发送
+      if (!confirm(`确认向客户发送发票邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含结账链接和订单详情。`)) {
         return;
       }
       
-      let response;
-      let data;
+      const response = await fetch(`${API_BASE}/send-invoice-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          draftOrderId: orderId,
+          customMessage: `您的3D打印报价已完成！\n\n订单号: ${orderName}\n请点击下方的结账链接查看详情并完成付款。\n\n如有任何问题，请联系我们的客服团队。\n\n感谢您选择我们的服务！`
+        })
+      });
       
-      if (isUnprocessable) {
-        // 无法加工订单：调用无法加工邮件API
-        // 需要从订单中获取原因和建议
-        const order = currentOrders.find(o => o.id === orderId);
-        let reason = '';
-        let suggestion = '';
-        
-        if (order && order.lineItems && order.lineItems.length > 0) {
-          const attrs = order.lineItems[0].customAttributes || [];
-          const noteAttr = attrs.find(a => a.key === '备注');
-          
-          if (noteAttr && noteAttr.value) {
-            // 解析备注中的原因和建议
-            // 备注格式：无法加工\n\n原因: xxx\n修改建议: yyy
-            const note = noteAttr.value;
-            const lines = note.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-            
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i];
-              if (line.startsWith('原因') || line.startsWith('无法加工的原因')) {
-                reason = line.replace(/^(原因|无法加工的原因)[:：]?\s*/, '').trim();
-              } else if (line.startsWith('修改建议') || line.startsWith('建议')) {
-                suggestion = line.replace(/^(修改建议|建议)[:：]?\s*/, '').trim();
-              }
-            }
-          }
-        }
-        
-        response = await fetch(`${API_BASE}/send-unprocessable-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            draftOrderId: orderId,
-            reason: reason,
-            suggestion: suggestion,
-            orderName: orderName
-          })
-        });
-        
-        data = await response.json();
-        
-        if (data.success) {
-          alert(`✅ 通知邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n\n客户已收到包含原因和建议的通知邮件。`);
-        } else {
-          alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
-        }
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ 发票邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n💰 金额: $${data.totalPrice}\n🔗 结账链接: ${data.invoiceUrl}`);
       } else {
-        // 已报价订单：调用发票邮件API
-        response = await fetch(`${API_BASE}/send-invoice-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            draftOrderId: orderId,
-            customMessage: `您的3D打印报价已完成！\n\n订单号: ${orderName}\n请点击下方的结账链接查看详情并完成付款。\n\n如有任何问题，请联系我们的客服团队。\n\n感谢您选择我们的服务！`
-          })
-        });
-        
-        data = await response.json();
-        
-        if (data.success) {
-          alert(`✅ 发票邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n💰 金额: $${data.totalPrice}\n🔗 结账链接: ${data.invoiceUrl}`);
-        } else {
-          alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
-        }
+        alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
       }
       
     } catch (error) {
