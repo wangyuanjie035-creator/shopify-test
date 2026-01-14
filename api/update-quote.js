@@ -135,10 +135,9 @@ export default async function handler(req, res) {
     }
     
     const currentDraftOrder = currentResult.data.draftOrder;
-    const currentLineItem = currentDraftOrder.lineItems.edges[0].node;
     
     // ═══════════════════════════════════════════════════════════
-    // 步骤 2: 更新 Draft Order 价格
+    // 步骤 2: 更新 Draft Order 价格（保留所有 lineItems）
     // ═══════════════════════════════════════════════════════════
     
     const updateMutation = `
@@ -159,53 +158,76 @@ export default async function handler(req, res) {
       }
     `;
     
-    // 保留原有的属性，更新状态相关的属性
-    const updatedAttributes = [
-      // 保留原有属性（过滤掉状态相关的）
-      ...currentLineItem.customAttributes.filter(attr => 
-        !['状态', '报价金额', '报价时间', '备注', '客服邮箱'].includes(attr.key)
-      )
-    ];
+    // 获取所有 lineItems（不只是第一个）
+    const allLineItems = currentDraftOrder.lineItems.edges.map(edge => edge.node);
+    const firstLineItem = allLineItems[0];
+    
+    if (!firstLineItem) {
+      return res.status(400).json({ error: '订单中没有商品项' });
+    }
     
     // 根据 status 设置订单状态
     const orderStatus = status === '无法加工' ? '无法加工' : '已报价';
-    updatedAttributes.push({ key: "状态", value: orderStatus });
-    
-    if (orderStatus === '无法加工') {
-      // 无法加工时，价格设为0，不设置报价金额
-      updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
-    } else {
-      // 正常报价时，设置报价金额
-      updatedAttributes.push({ key: "报价金额", value: `¥${amount}` });
-      updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
-    }
-    
-    // 添加备注（如果有）
-    if (note) {
-      updatedAttributes.push({ key: "备注", value: note });
-    }
-    
-    // 添加客服邮箱（如果有）
-    if (senderEmail) {
-      updatedAttributes.push({ key: "客服邮箱", value: senderEmail });
-    }
     
     // 设置价格：无法加工时为0，否则使用传入的amount 作为【总价】
-    const quantity = currentLineItem.quantity || 1;
+    const quantity = firstLineItem.quantity || 1;
     const finalAmount = orderStatus === '无法加工' ? 0 : amount; // 订单总价
     const unitPrice = orderStatus === '无法加工'
       ? 0
       : (amount / quantity); // 平均到每件，避免被数量再次放大
     
+    // 构建更新后的 lineItems 数组，保留所有 lineItems
+    const updatedLineItems = allLineItems.map((lineItem, index) => {
+      if (index === 0) {
+        // 第一个 lineItem（3D文件）：更新价格和状态属性
+        const updatedAttributes = [
+          // 保留原有属性（过滤掉状态相关的）
+          ...lineItem.customAttributes.filter(attr => 
+            !['状态', '报价金额', '报价时间', '备注', '客服邮箱'].includes(attr.key)
+          ),
+          { key: "状态", value: orderStatus }
+        ];
+        
+        if (orderStatus === '无法加工') {
+          // 无法加工时，价格设为0，不设置报价金额
+          updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
+        } else {
+          // 正常报价时，设置报价金额
+          updatedAttributes.push({ key: "报价金额", value: `¥${amount}` });
+          updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
+        }
+        
+        // 添加备注（如果有）
+        if (note) {
+          updatedAttributes.push({ key: "备注", value: note });
+        }
+        
+        // 添加客服邮箱（如果有）
+        if (senderEmail) {
+          updatedAttributes.push({ key: "客服邮箱", value: senderEmail });
+        }
+        
+        return {
+          title: lineItem.title,
+          quantity: lineItem.quantity,
+          // Shopify 的 total = originalUnitPrice * quantity，所以这里用总价 / 数量
+          originalUnitPrice: unitPrice.toString(),
+          customAttributes: updatedAttributes
+        };
+      } else {
+        // 其他 lineItems（2D文件等）：保持原样，只保留必要字段
+        return {
+          title: lineItem.title,
+          quantity: lineItem.quantity,
+          originalUnitPrice: lineItem.originalUnitPrice || '0.00',
+          customAttributes: lineItem.customAttributes || []
+        };
+      }
+    });
+    
     const updateInput = {
       taxExempt: true, // 免除税费，确保价格准确
-      lineItems: [{
-        title: currentLineItem.title,
-        quantity: currentLineItem.quantity,
-        // Shopify 的 total = originalUnitPrice * quantity，所以这里用总价 / 数量
-        originalUnitPrice: unitPrice.toString(),
-        customAttributes: updatedAttributes
-      }],
+      lineItems: updatedLineItems, // 包含所有 lineItems，确保2D文件不被删除
       note: orderStatus === '无法加工' 
         ? `无法加工\n时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`
         : `已报价总价: ¥${amount}\n折算单价: ¥${unitPrice.toFixed(2)}\n报价时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`
