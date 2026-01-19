@@ -220,9 +220,10 @@ export default async function handler(req, res) {
         const firstLineItem = order.lineItems.edges[0].node;
         const statusAttr = firstLineItem.customAttributes.find(attr => attr.key === '状态');
         if (statusAttr) {
-          if (statusAttr.value === '已报价' || statusAttr.value === '无法加工') {
-            orderStatus = 'quoted'; // "无法加工"也归类为已处理状态
+          if (statusAttr.value === '已报价') {
+            orderStatus = 'quoted'; // 只有"已报价"才归类为已处理状态
           }
+          // "无法加工"保持为 pending 状态（未报价）
         }
       }
 
