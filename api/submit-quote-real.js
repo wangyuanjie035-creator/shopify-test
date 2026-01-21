@@ -1,31 +1,31 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * 真实提交询价API - 创建Shopify Draft Order
+ * Submit RFQ API - Creates a Shopify Draft Order
  * ═══════════════════════════════════════════════════════════════
  * 
- * 功能：创建真实的Shopify Draft Order
+ * Purpose: create a Shopify Draft Order
  * 
- * 用途：
- * - 客户提交询价请求
- * - 创建真实的Shopify Draft Order
- * - 返回可被管理端查询的Draft Order ID
+ * Usage:
+ * - Customer submits an RFQ
+ * - Create Draft Order
+ * - Return Draft Order ID for admin lookup
  */
 
 /**
- * 请求示例：
+ * Request example:
  * POST /api/submit-quote-real
  * {
  *   "fileName": "model.stl",
  *   "customerEmail": "customer@example.com",
- *   "customerName": "张三",
+ *   "customerName": "Jane Doe",
  *   "quantity": 1,
  *   "material": "ABS"
  * }
  * 
- * 响应示例：
+ * Response example:
  * {
  *   "success": true,
- *   "message": "询价提交成功！",
+ *   "message": "RFQ submitted!",
  *   "quoteId": "Q1234567890",
  *   "draftOrderId": "gid://shopify/DraftOrder/1234567890",
  *   "invoiceUrl": "https://checkout.shopify.com/...",
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({
       success: true,
-      message: 'submit-quote-real API 工作正常',
+      message: 'submit-quote-real API is healthy',
       method: 'GET',
       timestamp: new Date().toISOString(),
     });
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     return res.status(405).json({
       success: false,
       error: 'method_not_allowed',
-      message: '仅支持 GET / POST / OPTIONS',
+      message: 'Only GET / POST / OPTIONS are supported',
     });
   }
 
@@ -71,8 +71,8 @@ export default async function handler(req, res) {
       lineItems = [],
       quantity = 1,
       material = 'ABS',
-      color = '白色',
-      precision = '标准 (±0.1mm)',
+      color = 'White',
+      precision = 'Standard (±0.1mm)',
     } = req.body || {};
 
     const normalize = (v, d = '') =>
@@ -80,13 +80,13 @@ export default async function handler(req, res) {
 
     const quoteId = `Q${Date.now()}`;
     const email = normalize(customerEmail, '').trim().toLowerCase();
-    const name = normalize(customerName, '客户');
+    const name = normalize(customerName, 'Customer');
 
     if (!email) {
       return res.status(400).json({
         success: false,
         error: 'missing_email',
-        message: '客户邮箱不能为空，请确保已登录或填写邮箱',
+        message: 'Customer email is required. Please sign in or provide an email.',
       });
     }
 
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
       return res.status(400).json({
         success: false,
         error: 'invalid_email',
-        message: `邮箱格式无效: ${email}`,
+        message: `Invalid email format: ${email}`,
       });
     }
 
@@ -105,8 +105,8 @@ export default async function handler(req, res) {
     if (hasFrontendLineItems) {
 
       const orderLevelAttrs = [
-        { key: '询价单号', value: quoteId },
-        { key: '文件', value: normalize(fileName || lineItems[0]?.title || 'model.stl') },
+        { key: 'Quote ID', value: quoteId },
+        { key: 'File', value: normalize(fileName || lineItems[0]?.title || 'model.stl') },
       ];
 
       finalItems = lineItems.map((item, index) => {
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
           if (!a || !a.key) return;
           const v = normalize(a.value, '');
           if (v.length > 20000) {
-            console.warn('⚠️ 跳过过长自定义字段:', a.key, '长度:', v.length);
+            console.warn('⚠️ Skipping overly long custom attribute:', a.key, 'length:', v.length);
             return;
           }
           attrMap.set(a.key, v);
@@ -132,7 +132,7 @@ export default async function handler(req, res) {
         }
 
         return {
-          title: item.title || `3D打印服务 - ${fileName || 'model.stl'}`,
+          title: item.title || `3D Manufacturing Quote - ${fileName || 'model.stl'}`,
           quantity: parseInt(item.quantity || quantity || 1, 10) || 1,
           originalUnitPrice: '0.00',
           customAttributes: Array.from(attrMap.entries()).map(([key, value]) => ({ key, value })),
@@ -140,20 +140,20 @@ export default async function handler(req, res) {
       });
     } else {
       const legacyAttrs = [
-        { key: '材料', value: normalize(material, '未指定') },
-        { key: '颜色', value: normalize(color, '未指定') },
-        { key: '精度', value: normalize(precision, '未指定') },
-        { key: '文件', value: normalize(fileName || 'model.stl') },
-        { key: '询价单号', value: quoteId },
+        { key: 'Material', value: normalize(material, 'Not specified') },
+        { key: 'Color', value: normalize(color, 'Not specified') },
+        { key: 'Precision', value: normalize(precision, 'Not specified') },
+        { key: 'File', value: normalize(fileName || 'model.stl') },
+        { key: 'Quote ID', value: quoteId },
       ];
 
       if (fileUrl && typeof fileUrl === 'string') {
-        legacyAttrs.push({ key: '文件URL', value: fileUrl });
+        legacyAttrs.push({ key: 'File URL', value: fileUrl });
       }
 
       finalItems = [
         {
-          title: `3D打印服务 - ${fileName || 'model.stl'}`,
+          title: `3D Manufacturing Quote - ${fileName || 'model.stl'}`,
           quantity: parseInt(quantity || 1, 10) || 1,
           originalUnitPrice: '0.00',
           customAttributes: legacyAttrs.map((a) => ({
@@ -169,15 +169,15 @@ export default async function handler(req, res) {
     const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
 
     if (!storeDomain || !accessToken) {
-      console.warn('⚠️ 环境变量未配置，返回模拟数据');
+      console.warn('⚠️ Missing environment variables; returning mock data');
       return res.status(200).json({
         success: true,
-        message: '环境变量未配置，返回模拟数据',
+        message: 'Missing environment variables; returning mock data',
         quoteId,
         draftOrderId: `gid://shopify/DraftOrder/mock-${Date.now()}`,
         customerEmail: email,
         fileName: fileName || 'test.stl',
-        note: '请配置 SHOP/SHOPIFY_STORE_DOMAIN 和 ADMIN_TOKEN/SHOPIFY_ACCESS_TOKEN',
+        note: 'Please configure SHOP/SHOPIFY_STORE_DOMAIN and ADMIN_TOKEN/SHOPIFY_ACCESS_TOKEN',
       });
     }
 
@@ -212,7 +212,7 @@ export default async function handler(req, res) {
       email,
       taxExempt: true,
       lineItems: finalItems,
-      note: `询价单号: ${quoteId}\n客户: ${name}\n文件: ${fileName || '未提供'}`,
+      note: `Quote ID: ${quoteId}\nCustomer: ${name}\nFile: ${fileName || 'Not provided'}`,
     };
 
     const resp = await fetch(`https://${storeDomain}/admin/api/2024-01/graphql.json`, {
@@ -227,12 +227,12 @@ export default async function handler(req, res) {
     const data = await resp.json();
     
     if (data.errors && data.errors.length) {
-      throw new Error(data.errors[0].message || 'DraftOrder 创建失败');
+      throw new Error(data.errors[0].message || 'DraftOrder creation failed');
     }
 
     const draftResult = data.data?.draftOrderCreate;
     if (!draftResult || draftResult.userErrors?.length) {
-      const msg = draftResult?.userErrors?.[0]?.message || 'DraftOrder 创建失败';
+      const msg = draftResult?.userErrors?.[0]?.message || 'DraftOrder creation failed';
       throw new Error(msg);
     }
 
@@ -240,28 +240,28 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: '询价提交成功！客服将在 24 小时内为您提供报价。',
+      message: 'RFQ submitted. Our team will get back to you with a quote within 24 hours.',
       quoteId,
       draftOrderId: draftOrder.id,
       draftOrderName: draftOrder.name,
       invoiceUrl: draftOrder.invoiceUrl,
       customerEmail: email,
-      fileName: fileName || '未提供',
+      fileName: fileName || 'Not provided',
       nextSteps: [
-        '1. 您将收到询价确认邮件',
-        '2. 客服将评估您的需求并报价',
-        '3. 报价完成后，您将收到通知',
-        '4. 您可以在「我的询价」页面查看进度',
+        '1. You will receive an RFQ confirmation email',
+        '2. We will review your requirements and prepare a quote',
+        '3. You will be notified when the quote is ready',
+        '4. You can track progress on the My Quotes page',
       ],
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    console.error('创建 DraftOrder 失败:', err);
+    console.error('DraftOrder creation failed:', err);
     const quoteId = `Q${Date.now()}`;
     const draftOrderId = `gid://shopify/DraftOrder/${Date.now()}`;
     return res.status(200).json({
       success: true,
-      message: '询价提交成功（简化模式），但 DraftOrder 创建失败',
+      message: 'RFQ submitted (fallback mode), but DraftOrder creation failed',
       quoteId,
       draftOrderId,
       customerEmail: req.body?.customerEmail || '',

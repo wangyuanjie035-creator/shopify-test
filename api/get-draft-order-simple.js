@@ -1,14 +1,14 @@
 /**
- * 简化版获取 Draft Order API - 避免权限问题
+ * Lightweight Draft Order fetch API (reduced permissions surface)
  */
 
-// 辅助函数：调用 Shopify GraphQL API
+// Helper: call Shopify GraphQL API
 async function shopGql(query, variables) {
   const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
   const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
   
   if (!storeDomain || !accessToken) {
-    throw new Error('缺少 Shopify 配置');
+    throw new Error('Missing Shopify configuration');
   }
   
   const endpoint = `https://${storeDomain}/admin/api/2024-01/graphql.json`;
@@ -24,18 +24,18 @@ async function shopGql(query, variables) {
   const json = await resp.json();
   
   if (!resp.ok) {
-    throw new Error(`Shopify API 请求失败: ${resp.status}`);
+    throw new Error(`Shopify API request failed: ${resp.status}`);
   }
   
   if (json.errors) {
-    throw new Error(`GraphQL 错误: ${json.errors[0].message}`);
+    throw new Error(`GraphQL error: ${json.errors[0].message}`);
   }
   
   return json;
 }
 
 export default async function handler(req, res) {
-  // 设置 CORS 头
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   const { id, email, admin } = req.query;
   const customerEmail = (email || '').trim().toLowerCase();
 
-// 管理员白名单
+// Admin allowlist
 const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com,kitto.chen@sainstore.com,cherry@sain3.com, keihen.luo@sain3.com,nancy.lin@sainstore.com')
     .split(',')
     .map(e => e.trim().toLowerCase())
@@ -62,28 +62,28 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
   
   if (!customerEmail) {
     return res.status(401).json({
-      error: '缺少客户邮箱',
-      message: '请提供 email 参数以验证身份'
+      error: 'missing_email',
+      message: 'Please provide the email parameter to verify identity.'
     });
   }
   if (admin && !isAdminRequest) {
     return res.status(403).json({
       error: 'forbidden',
-      message: '您无权查看其他用户的询价单'
+      message: 'You are not allowed to view other users’ quotes.'
     });
   }
   
   if (!id) {
     return res.status(400).json({
-      error: '缺少参数',
-      message: '请提供询价单ID'
+      error: 'missing_id',
+      message: 'Please provide the quote id.'
     });
   }
 
   try {
     let draftOrder = null;
     
-    // 如果是GID格式，直接查询
+    // If id is a GID, query directly
     if (id.startsWith('gid://shopify/DraftOrder/')) {
       const query = `
         query($id: ID!) {
@@ -115,15 +115,15 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
       const result = await shopGql(query, { id });
       draftOrder = result.data.draftOrder;
 
-      // 邮箱校验：确保订单属于当前客户（管理员除外）
+      // Email check: ensure the order belongs to the current customer (except admins)
       if (!isAdminRequest && draftOrder && (draftOrder.email || '').toLowerCase() !== customerEmail) {
         return res.status(403).json({
           error: 'forbidden',
-          message: '该询价单不属于当前账户'
+          message: 'This quote does not belong to the current account.'
         });
       }
     } else {
-      // 如果是名称格式，先搜索再查询
+      // If id is a name, search first then query
       const searchQuery = `
         query($query: String!) {
           draftOrders(first: 10, query: $query) {
@@ -156,7 +156,7 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
       `;
       
       const searchTerm = id.startsWith('#') ? `name:${id}` : `name:#${id}`;
-      // 管理员可搜索任意；普通用户需限定邮箱
+      // Admin can search any; customers are restricted by email
       const searchQueryStr = isAdminRequest
         ? searchTerm
         : `${searchTerm} AND email:"${customerEmail}"`;
@@ -170,84 +170,84 @@ const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sain
     
     if (!draftOrder) {
       return res.status(404).json({
-        error: '未找到询价单',
-        message: `询价单 ${id} 不存在`
+        error: 'not_found',
+        message: `Quote ${id} not found`
       });
     }
     
-    // 处理lineItems数据
+    // Normalize lineItems
     const lineItems = draftOrder.lineItems.edges.map(edge => edge.node);
     const firstLineItem = lineItems[0] || {};
     const customAttributes = firstLineItem.customAttributes || [];
     
-    // 从customAttributes中提取信息
+    // Extract from customAttributes
     const getAttribute = (key) => {
       const attr = customAttributes.find(a => a.key === key);
       return attr ? attr.value : '';
     };
     
-    // 构建与前端期望匹配的数据结构
+    // Shape response for frontend compatibility
     return res.status(200).json({
       success: true,
       draftOrder: {
         id: draftOrder.id,
         name: draftOrder.name,
         email: draftOrder.email,
-        status: draftOrder.status === 'INVOICE_SENT' ? '已报价' : '待报价',
+        status: draftOrder.status === 'INVOICE_SENT' ? 'Quoted' : 'Pending',
         totalPrice: draftOrder.totalPrice,
         createdAt: draftOrder.createdAt,
         
-        // 保持lineItems数组结构，供前端使用
+        // Keep the lineItems array shape for the frontend
         lineItems: lineItems.map(item => ({
           id: item.id,
           title: item.title,
           quantity: item.quantity,
           originalUnitPrice: item.originalUnitPrice,
-          price: item.originalUnitPrice, // 兼容性字段
+          price: item.originalUnitPrice, // compatibility field
           customAttributes: item.customAttributes
         })),
         
-        // 文件信息（向后兼容）
+        // File info (legacy)
         file: {
-          name: getAttribute('文件') || firstLineItem.title || '未知文件'
+          name: getAttribute('File') || firstLineItem.title || 'Unknown file'
         },
         
-        // 产品信息（向后兼容）
+        // Product info (legacy)
         product: {
-          title: firstLineItem.title || '3D打印服务',
+          title: firstLineItem.title || '3D Manufacturing Quote',
           quantity: firstLineItem.quantity || 1
         },
         
-        // 定制信息（向后兼容）
+        // Customization (legacy)
         customization: {
           quantity: firstLineItem.quantity || 1,
-          material: getAttribute('材料') || '未指定',
-          color: getAttribute('颜色') || '未指定',
-          precision: getAttribute('精度') || '未指定'
+          material: getAttribute('Material') || 'Not specified',
+          color: getAttribute('Color') || 'Not specified',
+          precision: getAttribute('Precision') || 'Not specified'
         },
         
-        // 报价信息（向后兼容）
+        // Quote info (legacy)
         quote: {
           amount: draftOrder.totalPrice || '0.00',
           note: '',
           quotedAt: ''
         },
         
-        // 文件下载URL（用于管理员下载）
+        // Invoice URL
         invoiceUrl: draftOrder.invoiceUrl || 'data:stored',
         
-        // 文件ID（从customAttributes中获取）
-        fileId: getAttribute('文件ID') || null,
+        // File ID
+        fileId: getAttribute('File ID') || null,
         
-        // 完整的lineItems（供高级使用）
+        // Full lineItems
         lineItems: lineItems
       }
     });
     
   } catch (error) {
-    console.error('获取 Draft Order 失败:', error);
+    console.error('Failed to fetch Draft Order:', error);
     return res.status(500).json({
-      error: '获取询价失败',
+      error: 'fetch_failed',
       message: error.message
     });
   }

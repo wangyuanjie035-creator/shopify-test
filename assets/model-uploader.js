@@ -1,18 +1,18 @@
-//model-uploader.js
+// model-uploader.js
 /**
  * 3D Model Uploader - Complete Multi-File Version
- * 支持多文件独立管理、ZIP解压、完整错误反馈
+ * Supports per-file configuration, ZIP extraction, and full error reporting.
  */
 
 (function() {
   'use strict';
 
-  // 全局变量
+  // Global state
   let fileManager = {
-    files: new Map(), // 存储所有文件及其配置
-    currentFileId: null, // 当前选中的文件ID
-    nextFileId: 1, // 下一个文件ID
-    // 文件关联关系：3D文件ID -> 对应的2D文件ID数组
+    files: new Map(), // Stores all files and their configs
+    currentFileId: null, // Currently selected file id
+    nextFileId: 1, // Next file id
+    // File association: 3D file id -> linked 2D file id(s)
     fileAssociations: new Map()
   };
 
@@ -21,11 +21,11 @@
   let camera = null;
   let renderer = null;
   
-  // Online3DViewer集成
+  // Online3DViewer integration
   let o3dvWrapper = null;
   let useAdvancedViewer = false;
 
-  // DOM 元素
+  // DOM elements
   let fileInput, dropzone, modelViewer, viewerContainer;
   let loadingIndicator, errorMessage, fileList, fileItems;
   let materialCategorySelect, materialSelect, surfaceListContainer, surfaceToggleYes, surfaceToggleNo;
@@ -35,49 +35,49 @@
   let hasThreadRadios, hasAssemblyRadios, tightestSelect, roughnessSelect, noteTextarea;
   let charCount;
 
-  // 材料类型映射
+  // Material catalog
   const MATERIAL_TYPE_MAP = {
-    '铝合金': ['铝合金-6061', '铝合金-7075'],
-    '塑料': [
-      '工程塑料-ABS（白色）',
-      '工程塑料-ABS（黑色）',
-      '赛钢-POM（白色）',
-      '赛钢-POM（黑色）',
-      '电木（黑色）',
-      '电木（橘黄色）',
-      '亚克力',
-      '环氧板-FR4（绿色）',
-      '尼龙-PA6（白色）',
-      '聚碳酸酯-PC'
+    'Aluminum Alloy': ['Aluminum 6061', 'Aluminum 7075'],
+    'Plastic': [
+      'ABS (White)',
+      'ABS (Black)',
+      'POM / Acetal (White)',
+      'POM / Acetal (Black)',
+      'Bakelite (Black)',
+      'Bakelite (Orange)',
+      'Acrylic (PMMA)',
+      'FR-4 Epoxy (Green)',
+      'Nylon PA6 (White)',
+      'Polycarbonate (PC)'
     ],
-    '铜合金': ['黄铜-H59', '紫铜-T2'],
-    '合金钢': ['45#钢'],
-    '不锈钢': ['SUS304']
+    'Copper Alloy': ['Brass H59', 'Copper T2'],
+    'Alloy Steel': ['Steel 45#'],
+    'Stainless Steel': ['SUS304']
   };
-  const DEFAULT_MATERIAL_CATEGORY = '铝合金';
+  const DEFAULT_MATERIAL_CATEGORY = 'Aluminum Alloy';
 
-  // 表面处理配置（按材料类别）
+  // Surface finish options (by category)
   const ALUMINUM_PRIMARY = [
-    '喷砂+普通阳极氧化',
-    '喷砂+导电氧化',
-    '喷砂+硬质阳极氧化',
-    '拉丝',
-    '仅喷砂',
-    '普通阳极氧化(不喷砂)',
-    '导电氧化(不喷砂)',
-    '硬质阳极氧化(不喷砂)',
-    '拉丝+普通阳极氧化'
+    'Bead Blast + Anodize (Clear)',
+    'Bead Blast + Conductive Anodize',
+    'Bead Blast + Hard Anodize',
+    'Brushed',
+    'Bead Blast Only',
+    'Anodize (No Bead Blast)',
+    'Conductive Anodize (No Bead Blast)',
+    'Hard Anodize (No Bead Blast)',
+    'Brushed + Anodize (Clear)'
   ];
-  const ALUMINUM_SECONDARY = ['不做', '激光打标', 'UV打印'];
-  const ALUMINUM_COLORS = ['本色', '黑色', '深空灰', '红色', '粉红色', '天蓝色', '深绿色', '沙金', '宝蓝色'];
+  const ALUMINUM_SECONDARY = ['None', 'Laser Marking', 'UV Printing'];
+  const ALUMINUM_COLORS = ['Natural', 'Black', 'Space Gray', 'Red', 'Pink', 'Sky Blue', 'Dark Green', 'Champagne', 'Royal Blue'];
 
-  const PLASTIC_OIL_TYPES = ['工程塑料-ABS（白色）', '工程塑料-ABS（黑色）', '电木（黑色）', '电木（橘黄色）'];
-  const PLASTIC_UV_TYPES = ['赛钢-POM（白色）', '赛钢-POM（黑色）', '尼龙-PA6（白色）', '环氧板-FR4（绿色）'];
-  const PLASTIC_CLEAR_TYPES = ['亚克力', '聚碳酸酯-PC'];
+  const PLASTIC_PAINT_TYPES = ['ABS (White)', 'ABS (Black)', 'Bakelite (Black)', 'Bakelite (Orange)'];
+  const PLASTIC_UV_TYPES = ['POM / Acetal (White)', 'POM / Acetal (Black)', 'Nylon PA6 (White)', 'FR-4 Epoxy (Green)'];
+  const PLASTIC_CLEAR_TYPES = ['Acrylic (PMMA)', 'Polycarbonate (PC)'];
 
-  const OIL_COLORS = ['黑色', '白色'];
-  const UV_COLORS = ['黑色', '白色', '红色', '橙色', '黄色', '绿色', '青色', '紫色'];
-  const SHEEN_OIL = ['哑光']; // 喷油仅哑光
+  const PAINT_COLORS = ['Black', 'White'];
+  const UV_COLORS = ['Black', 'White', 'Red', 'Orange', 'Yellow', 'Green', 'Cyan', 'Purple'];
+  const SHEEN_PAINT = ['Matte']; // paint: matte only
 
   function getDefaultMaterialType(category) {
     const types = MATERIAL_TYPE_MAP[category] || [];
@@ -124,100 +124,99 @@
   }
 
   function getSurfaceRule(materialType, materialCategory) {
-    // 默认铝合金
-    const isPlastic = materialCategory === '塑料';
-    if (materialCategory === '铝合金') {
+    const isPlastic = materialCategory === 'Plastic';
+    if (materialCategory === 'Aluminum Alloy') {
       return {
         primary: ALUMINUM_PRIMARY,
         secondary: ALUMINUM_SECONDARY,
         colorMap: {
           default: ALUMINUM_COLORS,
-          'UV打印': UV_COLORS
+          'UV Printing': UV_COLORS
         },
         sheenMap: {
-          // 无额外光泽选项
+          // No extra sheen options
         }
       };
     }
 
     if (isPlastic) {
-      if (PLASTIC_OIL_TYPES.includes(materialType)) {
+      if (PLASTIC_PAINT_TYPES.includes(materialType)) {
         return {
-          primary: ['喷油', 'UV打印'],
-          secondary: ['不做', '喷油', 'UV打印'],
+          primary: ['Spray Paint', 'UV Printing'],
+          secondary: ['None', 'Spray Paint', 'UV Printing'],
           colorMap: {
-            '喷油': OIL_COLORS,
-            'UV打印': UV_COLORS
+            'Spray Paint': PAINT_COLORS,
+            'UV Printing': UV_COLORS
           },
           sheenMap: {
-            '喷油': SHEEN_OIL
+            'Spray Paint': SHEEN_PAINT
           }
         };
       }
       if (PLASTIC_UV_TYPES.includes(materialType)) {
         return {
-          primary: ['UV打印'],
-          secondary: ['不做', 'UV打印'],
-          colorMap: { 'UV打印': UV_COLORS },
+          primary: ['UV Printing'],
+          secondary: ['None', 'UV Printing'],
+          colorMap: { 'UV Printing': UV_COLORS },
           sheenMap: {}
         };
       }
       if (PLASTIC_CLEAR_TYPES.includes(materialType)) {
         return {
-          primary: ['UV打印', '仅喷砂', '透明抛光'],
-          secondary: ['不做', 'UV打印'],
+          primary: ['UV Printing', 'Bead Blast Only', 'Clear Polish'],
+          secondary: ['None', 'UV Printing'],
           colorMap: {
-            'UV打印': UV_COLORS,
-            '仅喷砂': [],
-            '透明抛光': []
+            'UV Printing': UV_COLORS,
+            'Bead Blast Only': [],
+            'Clear Polish': []
           },
           sheenMap: {}
         };
       }
     }
 
-    // 铜合金：表面处理1只有"仅喷砂"和"镜面抛光"，没有表面处理2
-    if (materialCategory === '铜合金') {
+    // Copper: bead blast or mirror polish; no secondary finish
+    if (materialCategory === 'Copper Alloy') {
       return {
-        primary: ['仅喷砂', '镜面抛光'],
-        secondary: ['不做'], // 没有表面处理2
+        primary: ['Bead Blast Only', 'Mirror Polish'],
+        secondary: ['None'],
         colorMap: {
           default: [],
-          '仅喷砂': [],
-          '镜面抛光': []
+          'Bead Blast Only': [],
+          'Mirror Polish': []
         },
         sheenMap: {}
       };
     }
 
-    // 合金钢：表面处理1有"发黑"、"激光打标"、"拉丝"、"仅喷砂"，表面处理2和1一样
-    if (materialCategory === '合金钢') {
-      const alloySteelOptions = ['发黑', '激光打标', '拉丝', '仅喷砂'];
+    // Alloy steel: black oxide, laser marking, brushed, bead blast
+    if (materialCategory === 'Alloy Steel') {
+      const alloySteelOptions = ['Black Oxide', 'Laser Marking', 'Brushed', 'Bead Blast Only'];
       return {
         primary: alloySteelOptions,
-        secondary: ['不做', ...alloySteelOptions],
+        secondary: ['None', ...alloySteelOptions],
         colorMap: {
           default: [],
-          '发黑': [],
-          '激光打标': [],
-          '拉丝': [],
-          '仅喷砂': []
+          'Black Oxide': [],
+          'Laser Marking': [],
+          'Brushed': [],
+          'Bead Blast Only': []
         },
         sheenMap: {}
       };
     }
 
-    // 不锈钢：表面处理1有"激光打标"、"拉丝"、"仅喷砂"，表面处理2和1一样
-    if (materialCategory === '不锈钢') {
-      const stainlessSteelOptions = ['激光打标', '拉丝', '仅喷砂'];
+    // Stainless: laser marking, brushed, bead blast
+    if (materialCategory === 'Stainless Steel') {
+      const stainlessSteelOptions = ['Laser Marking', 'Brushed', 'Bead Blast Only'];
       return {
         primary: stainlessSteelOptions,
-        secondary: ['不做', ...stainlessSteelOptions],
+        secondary: ['None', ...stainlessSteelOptions],
         colorMap: {
           default: [],
-          '激光打标': [],
-          '拉丝': [],
-          '仅喷砂': []
+          'Laser Marking': [],
+          'Brushed': [],
+          'Bead Blast Only': []
         },
         sheenMap: {}
       };
@@ -2386,7 +2385,7 @@
     }
 
     if (!variantId) {
-      throw new Error('无法获取产品变体ID，请确保已配置关联商品');
+      throw new Error('Unable to resolve product variant ID. Please ensure a linked product is configured.');
     }
 
     // 尝试上传文件到服务器
@@ -2397,36 +2396,32 @@
     formData.append('id', variantId);
     formData.append('quantity', fileData.config.quantity);
     
-    // 添加文件（如果上传成功，存储URL；否则存储文件对象）
+    // Add file reference (URL preferred; fallback to raw file)
     if (fileUrl) {
-      formData.append('properties[上传文件]', fileUrl);
-      formData.append('properties[文件URL]', fileUrl);
+      formData.append('properties[Uploaded File]', fileUrl);
+      formData.append('properties[File URL]', fileUrl);
     } else {
-      formData.append('properties[上传文件]', fileData.file);
+      formData.append('properties[Uploaded File]', fileData.file);
     }
     
-    // 添加名称（多语言兜底，确保主题能显示其一）
-    formData.append('properties[零件名称]', fileData.file.name);
-    formData.append('properties[文件名称]', fileData.file.name);
-    formData.append('properties[文件名]', fileData.file.name);
-    formData.append('properties[名称]', fileData.file.name);
+    // Display name
     formData.append('properties[Part Name]', fileData.file.name);
     
-    // 其他配置参数（可见）
-    formData.append('properties[文件ID]', fileId);
-    formData.append('properties[单位]', fileData.config.unit);
-    formData.append('properties[材料大类]', fileData.config.materialCategory || getCategoryForMaterial(fileData.config.material) || '');
-    formData.append('properties[材料]', fileData.config.material);
-    formData.append('properties[表面处理]', surfaceText);
-    formData.append('properties[最严公差]', fileData.config.tightest || 'GB/T 1804-2000 m级');
-    formData.append('properties[表面粗糙度]', fileData.config.roughness);
-    formData.append('properties[是否有螺纹]', fileData.config.hasThread);
-    formData.append('properties[是否有装配关系]', fileData.config.hasAssembly);
-    formData.append('properties[备注]', fileData.config.note);
+    // Configuration
+    formData.append('properties[File ID]', fileId);
+    formData.append('properties[Units]', fileData.config.unit);
+    formData.append('properties[Material Category]', fileData.config.materialCategory || getCategoryForMaterial(fileData.config.material) || '');
+    formData.append('properties[Material]', fileData.config.material);
+    formData.append('properties[Surface Finish]', surfaceText);
+    formData.append('properties[Tightest Tolerance]', fileData.config.tightest || 'GB/T 1804-2000 m级');
+    formData.append('properties[Surface Roughness]', fileData.config.roughness);
+    formData.append('properties[Threads]', fileData.config.hasThread);
+    formData.append('properties[Assembly Features]', fileData.config.hasAssembly);
+    formData.append('properties[Notes]', fileData.config.note);
     
     if (fileData.dimensions) {
       const dimensions = `${(fileData.dimensions.width).toFixed(2)} x ${(fileData.dimensions.height).toFixed(2)} x ${(fileData.dimensions.depth).toFixed(2)} mm`;
-      formData.append('properties[尺寸]', dimensions);
+      formData.append('properties[Dimensions]', dimensions);
     }
     
     // 业务标记
@@ -2434,16 +2429,12 @@
     formData.append('properties[Quote Status]', 'Pending');
     formData.append('properties[_uuid]', `${Date.now()}-${fileId}-${Math.random().toString(16).slice(2)}`);
     
-    // 添加客户信息
+    // Customer info
     if (window.customerState && window.customerState.loggedIn) {
-      formData.append('properties[客户姓名]', window.customerState.customerName || '登录用户');
-      formData.append('properties[客户邮箱]', window.customerState.email || '');
-      formData.append('properties[Customer Name]', window.customerState.customerName || '登录用户');
+      formData.append('properties[Customer Name]', window.customerState.customerName || 'Signed-in customer');
       formData.append('properties[Customer Email]', window.customerState.email || '');
     } else {
-      formData.append('properties[客户姓名]', '未登录用户');
-      formData.append('properties[客户邮箱]', '');
-      formData.append('properties[Customer Name]', '未登录用户');
+      formData.append('properties[Customer Name]', 'Guest');
       formData.append('properties[Customer Email]', '');
     }
 
@@ -2461,7 +2452,7 @@
     try { data = await response.json(); } catch (_) {}
 
     if (!response.ok || (data && data.status)) {
-      const message = data?.message || '加入购物车失败';
+      const message = data?.message || 'Failed to add to cart';
       throw new Error(`${fileData.file.name}: ${message}`);
     }
 
@@ -2475,15 +2466,15 @@
       if (!window.QUOTES_API_BASE) {
         console.log('QUOTES_API_BASE not set, using default:', base);
       }
-      // 处理文件URL，尝试上传到 Vercel 后端
-      let invoiceUrl = formData.get('properties[文件URL]') || '';
+      // File URL (if available)
+      let invoiceUrl = formData.get('properties[File URL]') || '';
       let fileDataBase64 = '';
       
       // 尝试上传文件到 Vercel 后端
       try {
         if (invoiceUrl && invoiceUrl.startsWith('data:')) {
           fileDataBase64 = invoiceUrl;
-          console.log('检测到data: URI，尝试上传到后端');
+          console.log('Detected data: URI, attempting backend upload');
           
           // 上传文件到 Vercel 后端
           const uploadResponse = await fetch(`${base}/upload-file`, {
@@ -2503,19 +2494,19 @@
           if (uploadResponse.ok) {
             const uploadResult = await uploadResponse.json();
             invoiceUrl = uploadResult.fileUrl;
-            console.log('文件上传成功:', uploadResult);
+            console.log('File upload succeeded:', uploadResult);
           } else {
-            console.warn('文件上传失败，标记为上传失败');
+            console.warn('File upload failed; marking as failed');
             invoiceUrl = 'data:upload_failed';
           }
         } else if (!invoiceUrl) {
-          // 如果没有文件URL，尝试从文件对象生成
-          console.log('没有文件URL，尝试生成并上传文件数据');
+          // If there is no URL, try to generate & upload
+          console.log('No file URL; attempting to generate and upload file data');
           try {
             const reader = new FileReader();
             reader.onload = async function(e) {
               fileDataBase64 = e.target.result;
-              console.log('文件数据生成成功，尝试上传');
+              console.log('Generated file data; attempting upload');
               
               // 上传文件到 Vercel 后端
               try {
