@@ -1128,22 +1128,22 @@
     window.open(`/pages/my-quotes?id=${orderId}`, '_blank');
   }
 
-  // 标记订单为无法加工
+  // Mark order as not manufacturable
   async function markAsUnprocessable(orderId, customerEmail, orderName) {
     try {
       // 弹出对话框让管理员输入原因和修改建议
-      const reason = prompt('请输入无法加工的原因：\n\n例如：零件尺寸超出加工范围、材料不符合要求等');
+      const reason = prompt('Enter the reason (e.g., part size out of range, unsupported material):');
       if (!reason || reason.trim() === '') {
         return;
       }
       
-      const suggestion = prompt('请输入修改建议：\n\n例如：请将尺寸调整为XX以内、请更换为XX材料等');
+      const suggestion = prompt('Enter suggested changes (e.g., reduce size to X, change material to Y):');
       if (!suggestion || suggestion.trim() === '') {
         return;
       }
       
       // 确认操作
-      if (!confirm(`确认标记订单为"无法加工"？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n原因: ${reason}\n建议: ${suggestion}`)) {
+      if (!confirm(`Mark this order as "Not manufacturable"?\n\nCustomer email: ${customerEmail}\nOrder: ${orderName}\n\nReason: ${reason}\nSuggested changes: ${suggestion}`)) {
         return;
       }
       
@@ -1155,16 +1155,16 @@
         },
         body: JSON.stringify({
           draftOrderId: orderId,
-          amount: 0, // 无法加工时价格设为0
-          note: `无法加工\n\n原因: ${reason}\n修改建议: ${suggestion}`,
-          status: '无法加工' // 特殊状态标记
+          amount: 0, // not manufacturable: set amount to 0
+          note: `Not manufacturable\n\nReason: ${reason}\nSuggested changes: ${suggestion}`,
+          status: 'Not manufacturable'
         })
       });
       
       const updateData = await updateResponse.json();
       
       if (!updateData.success) {
-        alert('❌ 更新订单状态失败: ' + (updateData.message || '未知错误'));
+        alert('❌ Failed to update order status: ' + (updateData.message || 'Unknown error'));
         return;
       }
       
@@ -1172,19 +1172,19 @@
       loadOrders();
       
       // 显示成功提示
-      alert(`✅ 订单已标记为"无法加工"！\n\n📋 订单号: ${orderName}\n📧 客户邮箱: ${customerEmail}\n\n订单状态已更新，客户可在询价页面查看无法加工的原因和建议。`);
+      alert(`✅ Marked as "Not manufacturable".\n\n📋 Order: ${orderName}\n📧 Customer: ${customerEmail}\n\nThe customer can view the reason and suggested changes in My Quotes.`);
       
     } catch (error) {
-      console.error('标记订单为无法加工失败:', error);
-      alert('❌ 操作失败: ' + error.message);
+      console.error('Failed to mark as not manufacturable:', error);
+      alert('❌ Operation failed: ' + error.message);
     }
   }
 
-  // 发送发票邮件（仅用于已报价订单）
+  // Send invoice email (quoted orders only)
   async function sendInvoiceEmail(orderId, customerEmail, orderName) {
     try {
       // 确认发送
-      if (!confirm(`确认向客户发送发票邮件？\n\n客户邮箱: ${customerEmail}\n订单号: ${orderName}\n\n邮件将包含结账链接和订单详情。`)) {
+      if (!confirm(`Send invoice email?\n\nCustomer email: ${customerEmail}\nOrder: ${orderName}\n\nThe email will include the checkout link and order details.`)) {
         return;
       }
       
@@ -1195,21 +1195,21 @@
         },
         body: JSON.stringify({
           draftOrderId: orderId,
-          customMessage: `您的3D打印报价已完成！\n\n订单号: ${orderName}\n请点击下方的结账链接查看详情并完成付款。\n\n如有任何问题，请联系我们的客服团队。\n\n感谢您选择我们的服务！`
+          customMessage: `Your quote is ready.\n\nOrder: ${orderName}\nPlease use the checkout link below to review and complete payment.\n\nIf you have any questions, please contact our support team.\n\nThank you for choosing us!`
         })
       });
       
       const data = await response.json();
       
       if (data.success) {
-        alert(`✅ 发票邮件发送成功！\n\n📧 已发送至: ${customerEmail}\n📋 订单号: ${orderName}\n💰 金额: $${data.totalPrice}\n🔗 结账链接: ${data.invoiceUrl}`);
+        alert(`✅ Invoice email sent.\n\n📧 To: ${customerEmail}\n📋 Order: ${orderName}\n💰 Amount: $${data.totalPrice}\n🔗 Checkout: ${data.invoiceUrl}`);
       } else {
-        alert('❌ 发送邮件失败: ' + (data.message || '未知错误'));
+        alert('❌ Failed to send email: ' + (data.message || 'Unknown error'));
       }
       
     } catch (error) {
-      console.error('发送邮件失败:', error);
-      alert('❌ 发送邮件失败: ' + error.message);
+      console.error('Failed to send email:', error);
+      alert('❌ Failed to send email: ' + error.message);
     }
   }
 

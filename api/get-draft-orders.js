@@ -60,7 +60,7 @@ export default async function handler(req, res) {
       // 返回模拟数据
       return res.status(200).json({
         success: true,
-        message: '环境变量未配置，返回模拟数据',
+        message: 'Missing environment variables; returning mock data',
         draftOrders: [
           {
             id: 'gid://shopify/DraftOrder/1234567890',
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
             createdAt: new Date().toISOString(),
             lineItems: [
               {
-                title: '3D打印服务',
+                title: '3D Printing Service',
                 quantity: 1,
                 originalUnitPrice: '99.00'
               }
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
             createdAt: new Date(Date.now() - 3600000).toISOString(),
             lineItems: [
               {
-                title: '3D打印服务',
+                title: '3D Printing Service',
                 quantity: 2,
                 originalUnitPrice: '99.50'
               }
@@ -96,14 +96,14 @@ export default async function handler(req, res) {
         total: 2,
         pending: 1,
         quoted: 1,
-        note: '这是模拟数据，请配置环境变量后重新部署'
+        note: 'This is mock data. Configure environment variables and redeploy.'
       });
     }
 
     // 获取查询参数
     const { status, limit = 50, email, admin } = req.query;
 
-    // 管理员白名单（逗号分隔，环境变量 ADMIN_EMAIL_WHITELIST）
+    // Admin allowlist (comma-separated; env: ADMIN_EMAIL_WHITELIST)
     const adminWhitelist = (process.env.ADMIN_EMAIL_WHITELIST || 'jonathan.wang@sainstore.com,issac.yu@sainstore.com,kitto.chen@sainstore.com,cherry@sain3.com, keihen.luo@sain3.com,nancy.lin@sainstore.com')
       .split(',')
       .map(e => e.trim().toLowerCase())
