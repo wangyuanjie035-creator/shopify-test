@@ -1,6 +1,6 @@
 {% comment %}
-  Draft Order 管理页面 - 显示和管理Shopify Draft Orders
-  安全：需要管理员密码验证
+  Draft Order Management Page - View and manage Shopify Draft Orders
+  Security: admin password required
 {% endcomment %}
 
 <!-- 当前登录邮箱（用于前端校验） -->
@@ -11,20 +11,20 @@
   <div class="login-card">
     <div class="login-header">
       <span class="login-icon">🔐</span>
-      <h2>管理员验证</h2>
-      <p>请输入管理员密码以访问草稿订单管理</p>
+      <h2>Admin Verification</h2>
+      <p>Enter the admin password to access Draft Order Management.</p>
     </div>
     <div class="login-body">
       <input 
         type="password" 
         id="admin-password-input" 
         class="password-input" 
-        placeholder="请输入管理员密码"
+        placeholder="Enter admin password"
         onkeypress="if(event.key==='Enter') verifyAdminPassword()"
       >
       <button class="login-btn" onclick="verifyAdminPassword()">
         <span class="btn-icon">🔓</span>
-        验证登录
+        Sign in
       </button>
       <div id="login-error" class="login-error" style="display: none;"></div>
     </div>
@@ -36,12 +36,12 @@
   <div class="page-header">
     <h1 class="page-title">
       <span class="title-icon">📋</span>
-      Draft Order 报价管理
+      Draft Order Quote Management
     </h1>
     <div class="header-actions">
       <button class="refresh-btn" onclick="refreshOrders()">
         <span class="btn-icon">🔄</span>
-        刷新
+        Refresh
       </button>
     </div>
   </div>
@@ -51,34 +51,34 @@
     <div class="stat-card">
       <div class="stat-icon">⏳</div>
       <div class="stat-number" id="pending-count">0</div>
-      <div class="stat-label">待报价</div>
+      <div class="stat-label">Pending</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon">✅</div>
       <div class="stat-number" id="quoted-count">0</div>
-      <div class="stat-label">已报价</div>
+      <div class="stat-label">Quoted</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon">📊</div>
       <div class="stat-number" id="total-count">0</div>
-      <div class="stat-label">总计</div>
+      <div class="stat-label">Total</div>
     </div>
   </div>
 
   <!-- 过滤器 -->
   <div class="filter-section">
     <div class="filter-group">
-      <span class="filter-label">状态筛选：</span>
-      <button class="filter-btn active" data-status="all">全部</button>
-      <button class="filter-btn" data-status="pending">待报价</button>
-      <button class="filter-btn" data-status="quoted">已报价</button>
+      <span class="filter-label">Status:</span>
+      <button class="filter-btn active" data-status="all">All</button>
+      <button class="filter-btn" data-status="pending">Pending</button>
+      <button class="filter-btn" data-status="quoted">Quoted</button>
     </div>
     <div class="filter-group">
-      <span class="filter-label">时间筛选：</span>
-      <button class="time-filter-btn active" data-time="all">全部时间</button>
-      <button class="time-filter-btn" data-time="today">今日</button>
-      <button class="time-filter-btn" data-time="week">一周内</button>
-      <button class="time-filter-btn" data-time="month">一个月内</button>
+      <span class="filter-label">Time:</span>
+      <button class="time-filter-btn active" data-time="all">All time</button>
+      <button class="time-filter-btn" data-time="today">Today</button>
+      <button class="time-filter-btn" data-time="week">Last 7 days</button>
+      <button class="time-filter-btn" data-time="month">Last 30 days</button>
     </div>
   </div>
 
@@ -93,30 +93,30 @@
   <div id="quote-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>添加报价</h3>
+        <h3>Add Quote</h3>
         <span class="close" onclick="closeQuoteModal()">&times;</span>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>询价单号:</label>
+          <label>Quote ID:</label>
           <input type="text" id="quote-id" readonly>
         </div>
         <div class="form-group">
-          <label>客户邮箱:</label>
+          <label>Customer email:</label>
           <input type="text" id="customer-email" readonly>
         </div>
         <div class="form-group">
-          <label>报价金额 ($):</label>
-          <input type="number" id="quote-amount" placeholder="请输入报价金额" step="0.01">
+          <label>Quoted amount ($):</label>
+          <input type="number" id="quote-amount" placeholder="Enter amount" step="0.01">
         </div>
         <div class="form-group">
-          <label>备注:</label>
-          <textarea id="quote-note" placeholder="请输入报价备注" rows="3"></textarea>
+          <label>Notes:</label>
+          <textarea id="quote-note" placeholder="Add notes (optional)" rows="3"></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeQuoteModal()">取消</button>
-        <button class="btn btn-primary" onclick="submitQuote()">确认报价</button>
+        <button class="btn btn-secondary" onclick="closeQuoteModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitQuote()">Submit Quote</button>
       </div>
     </div>
   </div>
@@ -745,7 +745,7 @@
     // 使用事件委托，避免重复绑定问题
     const filterSection = document.querySelector('.filter-section');
     if (!filterSection) {
-      console.error('未找到过滤器区域');
+      console.error('Filter section not found');
       return;
     }
     
@@ -772,17 +772,25 @@
     });
   }
   
-  // 获取订单状态文本
+  // Normalize status (backward compatible: supports both CN and EN values)
+  function normalizeStatusValue(v) {
+    const raw = (v || '').toString().trim();
+    if (raw === '已报价' || raw === 'Quoted') return 'Quoted';
+    if (raw === '无法加工' || raw === 'Not manufacturable') return 'Not manufacturable';
+    if (raw === '待报价' || raw === 'Pending') return 'Pending';
+    return raw || 'Pending';
+  }
+
+  // Status label for UI
   function getOrderStatusText(order) {
-    // 检查订单自定义属性中的状态
     if (order.lineItems && order.lineItems.length > 0) {
       const attrs = order.lineItems[0].customAttributes || [];
-      const statusAttr = attrs.find(a => a.key === '状态');
-      if (statusAttr && statusAttr.value === '无法加工') {
-        return '无法加工';
-      }
+      const statusAttr = attrs.find(a => a.key === 'Status' || a.key === '状态');
+      const normalized = normalizeStatusValue(statusAttr && statusAttr.value);
+      if (normalized === 'Not manufacturable') return 'Not manufacturable';
+      if (normalized === 'Quoted') return 'Quoted';
     }
-    return order.status === 'pending' ? '待报价' : '已报价';
+    return order.status === 'pending' ? 'Pending' : 'Quoted';
   }
 
 
@@ -800,16 +808,16 @@
       
       if (data.success && data.draftOrders) {
         currentOrders = data.draftOrders.map(order => {
-          // 检查订单状态（包括"无法加工"）
+          // Determine order status (including not manufacturable)
           let orderStatus = 'pending';
           if (order.lineItems && order.lineItems.length > 0) {
             const attrs = order.lineItems[0].customAttributes || [];
-            const statusAttr = attrs.find(a => a.key === '状态');
+            const statusAttr = attrs.find(a => a.key === 'Status' || a.key === '状态');
             if (statusAttr) {
-              if (statusAttr.value === '已报价') {
+              if (normalizeStatusValue(statusAttr.value) === 'Quoted') {
                 orderStatus = 'quoted'; // 只有"已报价"才归类为已处理状态
               }
-              // "无法加工"保持为 pending 状态（未报价）
+              // Not manufacturable stays pending (not quoted)
             } else if (order.status === 'quoted') {
               orderStatus = 'quoted';
             }
@@ -840,16 +848,16 @@
       updateStats();
       
     } catch (error) {
-      console.error('加载订单失败:', error);
+      console.error('Failed to load orders:', error);
       
       // 显示错误状态
       document.getElementById('orders-list').innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">❌</div>
-          <div>加载失败: ${error.message}</div>
+          <div>Load failed: ${error.message}</div>
           <button class="refresh-btn" onclick="loadOrders()" style="margin-top: 20px;">
             <span class="btn-icon">🔄</span>
-            重试
+            Retry
           </button>
         </div>
       `;

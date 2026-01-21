@@ -68,8 +68,8 @@
     {% endif %}
 
     {%- comment -%}
-      隐藏“草稿订单管理”导航：非白名单管理员看不到入口，避免误点。
-      如需调整白名单，请修改 ADMIN_EMAILS。
+      Hide the “Draft Order Management” entry for non-admin customers.
+      To adjust the allowlist, edit ADMIN_EMAILS below.
     {%- endcomment -%}
     <script>
       (() => {
@@ -78,7 +78,7 @@
         const isAdmin = ADMIN_EMAILS.includes(customerEmail);
 
         const hideMoreMenus = () => {
-          // 隐藏标题为 More 的折叠菜单或链接
+          // Hide the "More" disclosure entry/link
           document.querySelectorAll('details.disclosure').forEach(d => {
             const summaryText = (d.querySelector('summary')?.textContent || '').trim().toLowerCase();
             if (summaryText === 'more') {
@@ -97,7 +97,7 @@
         };
 
         const hideCartIcon = () => {
-          // 隐藏右上角购物车按钮（尽可能多的选择器兜底）
+          // Hide cart icon (best-effort selector coverage)
           const selectors = [
             'a[href="/cart"]',
             'a[href*="/cart"]',
@@ -108,7 +108,6 @@
             '.site-header__cart',
             '.icon-cart',
             '[aria-label="Cart"]',
-            '[aria-label="购物车"]',
             '[data-icon-type="cart"]',
             '[data-testid="cart-count-bubble"]'
           ];
@@ -116,6 +115,32 @@
             const li = el.closest('li');
             if (li) li.style.display = 'none';
             el.style.display = 'none';
+          });
+        };
+
+        // Translate specific Chinese labels to English at runtime.
+        // This is necessary when labels come from Shopify Navigation / product titles (not from theme code).
+        const applyEnglishTextMap = () => {
+          const map = new Map([
+            ['\u5b9a\u5236\u5316\u52a0\u5de5\u670d\u52a1', 'Custom Manufacturing'],
+            ['\u6211\u7684\u8be2\u4ef7', 'My Quotes'],
+            ['\u8349\u7a3f\u8ba2\u5355\u7ba1\u7406', 'Draft Orders'],
+            ['\u8054\u7cfb\u65b9\u5f0f', 'Contact'],
+            ['3D\u6253\u5370\u670d\u52a1', '3D Printing Service'],
+            ['CNC\u52a0\u5de5\u670d\u52a1', 'CNC Machining Service']
+          ]);
+
+          const candidates = document.querySelectorAll(
+            'a, button, summary, span, p, h1, h2, h3, h4, h5, h6, li, div'
+          );
+          candidates.forEach((el) => {
+            if (!el || el.children.length > 0) return;
+            const txt = (el.textContent || '').trim();
+            if (!txt) return;
+            const replaced = map.get(txt);
+            if (replaced && replaced !== txt) {
+              el.textContent = replaced;
+            }
           });
         };
 
@@ -128,9 +153,10 @@
                 a.parentElement.style.display = 'none';
               }
             });
-            // 隐藏可能出现的“More”折叠入口
+            // Hide "More" entry and cart icon, then apply English labels
             hideMoreMenus();
             hideCartIcon();
+            applyEnglishTextMap();
           };
           if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', hideLinks);
@@ -142,10 +168,12 @@
             document.addEventListener('DOMContentLoaded', () => {
               hideMoreMenus();
               hideCartIcon();
+              applyEnglishTextMap();
             });
           } else {
             hideMoreMenus();
             hideCartIcon();
+            applyEnglishTextMap();
           }
         }
       })();

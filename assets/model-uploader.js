@@ -729,7 +729,7 @@
     } else if (isValidFile(file)) {
       return await processRegularFile(file);
     } else {
-      throw new Error('不支持的文件格式，仅支持STP/STEP格式文件以及对应的2D图纸（DWG/DXF/PDF）');
+      throw new Error('Unsupported file format. Supported: STP/STEP, plus matching 2D drawings (DWG/DXF/PDF).');
     }
   }
 
@@ -744,7 +744,7 @@
         try {
           // 使用JSZip库解压
       if (typeof JSZip === 'undefined') {
-            throw new Error('ZIP解压功能需要加载JSZip库，请刷新页面重试');
+            throw new Error('ZIP extraction requires JSZip. Please refresh and try again.');
       }
       
           console.log('Loading ZIP with JSZip...');
@@ -850,7 +850,7 @@
       material: getDefaultMaterialType(DEFAULT_MATERIAL_CATEGORY),
       surfaceEnabled: false,
       surfaceTreatments: [],
-      tightest: 'GB/T 1804-2000 m级',
+      tightest: 'GB/T 1804-2000 m',
       roughness: 'Ra3.2',
       hasThread: 'no',
       hasAssembly: 'no',
@@ -1052,9 +1052,9 @@
         
         // 查找对应的2D文件
         const corresponding2DFiles = getCorresponding2DFiles(fileId);
-        console.log(`3D文件 ${fileData.file.name} 对应的2D文件:`, corresponding2DFiles.map(f => f.name));
+        console.log(`3D file ${fileData.file.name} linked 2D files:`, corresponding2DFiles.map(f => f.name));
         const has2DIndicator = corresponding2DFiles.length > 0 ? 
-          `<div class="file-2d-indicator">📄 已上传2D图纸: ${corresponding2DFiles.map(f => f.name).join(', ')}</div>` : '';
+          `<div class="file-2d-indicator">📄 2D drawing uploaded: ${corresponding2DFiles.map(f => f.name).join(', ')}</div>` : '';
         
         const checkedAttr = selectedFileIds.has(fileId) ? 'checked' : '';
         fileItem.innerHTML = `
@@ -1067,8 +1067,8 @@
           ${fileData.dimensions ? `<span class="file-dimensions">${fileData.dimensions.width.toFixed(1)} x ${fileData.dimensions.height.toFixed(1)} x ${fileData.dimensions.depth.toFixed(1)} mm</span>` : ''}
       </div>
             <div class="file-actions">
-          <button type="button" class="file-select" data-file-id="${fileId}" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
-          <button type="button" class="file-delete" data-file-id="${fileId}">删除</button>
+          <button type="button" class="file-select" data-file-id="${fileId}" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>Select</button>
+          <button type="button" class="file-delete" data-file-id="${fileId}">Remove</button>
           </div>
           ${has2DIndicator}
         `;
@@ -1081,7 +1081,7 @@
             e.preventDefault();
             e.stopPropagation();
             const id = parseInt(selectBtn.dataset.fileId, 10);
-            console.log('点击选择按钮，fileId:', id, '类型:', typeof id);
+            console.log('Select clicked, fileId:', id, 'type:', typeof id);
             selectFile(id);
           });
         }
@@ -1090,13 +1090,13 @@
             e.preventDefault();
             e.stopPropagation();
             const id = parseInt(deleteBtn.dataset.fileId, 10);
-            console.log('点击删除按钮，fileId:', id, '类型:', typeof id);
+            console.log('Remove clicked, fileId:', id, 'type:', typeof id);
             removeFile(id);
           });
         }
         console.log('Created file item for:', fileData.file.name);
         fileItems.appendChild(fileItem);
-        console.log('Appended file item to fileItems, fileItems.children.length:', fileItems.children.length);
+        console.log('Appended file item, fileItems.children.length:', fileItems.children.length);
       }
     });
     
@@ -1117,20 +1117,20 @@
         
         // 如果没有对应的3D文件，显示这个孤儿2D文件
         if (!hasCorresponding3D) {
-          console.log(`孤儿2D文件: ${fileData.file.name}`);
+          console.log(`Orphan 2D file: ${fileData.file.name}`);
           const fileItem = document.createElement('div');
           fileItem.className = 'file-item orphan-2d';
           fileItem.innerHTML = `
             <div class="file-info">
               <span class="file-name">${fileData.file.name}</span>
               <span class="file-size">${formatFileSize(fileData.file.size)}</span>
-              <span class="file-type">2D图纸</span>
+              <span class="file-type">2D drawing</span>
             </div>
             <div class="file-actions">
-              <button type="button" class="file-select" data-file-id="${fileId}" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>选择</button>
-              <button type="button" class="file-delete" data-file-id="${fileId}">删除</button>
+              <button type="button" class="file-select" data-file-id="${fileId}" ${fileId === fileManager.currentFileId ? 'style="background: #1976d2; color: white;"' : ''}>Select</button>
+              <button type="button" class="file-delete" data-file-id="${fileId}">Remove</button>
             </div>
-            <div class="file-warning">⚠️ 此2D文件缺少对应的3D文件</div>
+            <div class="file-warning">⚠️ This 2D file is missing its matching 3D file</div>
           `;
           
           // 绑定事件处理器
@@ -1141,7 +1141,7 @@
               e.preventDefault();
               e.stopPropagation();
               const id = parseInt(selectBtn.dataset.fileId, 10);
-              console.log('点击选择按钮（2D），fileId:', id, '类型:', typeof id);
+              console.log('Select clicked (2D), fileId:', id, 'type:', typeof id);
               selectFile(id);
             });
           }
@@ -1150,7 +1150,7 @@
               e.preventDefault();
               e.stopPropagation();
               const id = parseInt(deleteBtn.dataset.fileId, 10);
-              console.log('点击删除按钮（2D），fileId:', id, '类型:', typeof id);
+              console.log('Remove clicked (2D), fileId:', id, 'type:', typeof id);
               removeFile(id);
             });
           }
@@ -1277,12 +1277,12 @@
       const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
       if (need2D && !hasCorresponding2DFile(id)) return true;
       
-      // 检查UV打印和激光打标是否需要2D图纸
+      // Require 2D drawings for certain finish options
       if (fd.config && fd.config.surfaceEnabled !== false && fd.config.surfaceTreatments) {
         const rule = getSurfaceRule(fd.config.material, fd.config.materialCategory);
         const surfaceTexts = normalizeSurfaceTreatments(fd.config.surfaceTreatments, true, rule);
-        const hasUV = surfaceTexts.some(t => t.process === 'UV打印');
-        const hasLaserMarking = surfaceTexts.some(t => t.process === '激光打标');
+        const hasUV = surfaceTexts.some(t => t.process === 'UV Printing');
+        const hasLaserMarking = surfaceTexts.some(t => t.process === 'Laser Marking');
         if ((hasUV || hasLaserMarking) && !hasCorresponding2DFile(id)) return true;
       }
       return false;
@@ -1405,7 +1405,7 @@
       rule
     );
       renderSurfaceTreatments(fileData.config);
-    fileData.config.tightest = tightestSelect?.value || 'GB/T 1804-2000 m级';
+    fileData.config.tightest = tightestSelect?.value || 'GB/T 1804-2000 m';
     fileData.config.roughness = roughnessSelect?.value || 'Ra3.2';
     fileData.config.hasThread = document.querySelector('input[name="has-thread"]:checked')?.value || 'no';
     fileData.config.hasAssembly = document.querySelector('input[name="has-assembly-mark"]:checked')?.value || 'no';
@@ -1429,36 +1429,36 @@
     const warnings = [];
     const errors = [];
 
-    // 检查文件格式 - 只允许STP文件
+    // File format check - only STP/STEP are allowed
     if (fileData.file && fileData.file.name.toLowerCase().endsWith('.stl')) {
       const fileName = fileData.file.name;
-      errors.push(`❌ 文件"${fileName}"是STL格式，系统仅支持STP/STEP格式文件。STL文件无法转换为STEP文件，请重新导出为STP/STEP格式`);
+      errors.push(`❌ File "${fileName}" is STL. Only STP/STEP files are supported. Please export as STP/STEP and try again.`);
     }
 
-    // 当选择有螺纹/装配关系时，必须有对应2D
+    // If threads/assembly features are selected, a matching 2D drawing is required
     if (fileData && fileData.config) {
       const need2D = fileData.config.hasThread === 'yes' || fileData.config.hasAssembly === 'yes';
       const rule = getSurfaceRule(fileData.config.material, fileData.config.materialCategory);
       const surfaceTexts = normalizeSurfaceTreatments(fileData.config.surfaceTreatments, fileData.config.surfaceEnabled !== false, rule);
-      const hasUV = (fileData.config.surfaceEnabled !== false) && surfaceTexts.some(t => t.process === 'UV打印');
+      const hasUV = (fileData.config.surfaceEnabled !== false) && surfaceTexts.some(t => t.process === 'UV Printing');
       if (need2D) {
         const has2D = hasCorresponding2DFile(fileManager.currentFileId);
         if (!has2D) {
-          const reason = fileData.config.hasThread === 'yes' ? '螺纹' : (fileData.config.hasAssembly === 'yes' ? '装配关系' : '特殊要求');
-          errors.push(`❌ 文件"${fileData.file.name}"已选择有${reason}，但缺少对应的2D图纸（DWG/DXF/PDF）`);
+          const reason = fileData.config.hasThread === 'yes' ? 'threads' : (fileData.config.hasAssembly === 'yes' ? 'assembly features' : 'special requirements');
+          errors.push(`❌ File "${fileData.file.name}" requires 2D drawings for ${reason}, but none were provided (DWG/DXF/PDF).`);
         }
       }
-      const hasLaserMarking = (fileData.config.surfaceEnabled !== false) && surfaceTexts.some(t => t.process === '激光打标');
+      const hasLaserMarking = (fileData.config.surfaceEnabled !== false) && surfaceTexts.some(t => t.process === 'Laser Marking');
       if (hasUV) {
         const has2D = hasCorresponding2DFile(fileManager.currentFileId);
         if (!has2D) {
-          errors.push(`❌ 文件"${fileData.file.name}"选择了UV打印，但缺少对应的2D图纸（DWG/DXF/PDF）。`);
+          errors.push(`❌ File "${fileData.file.name}" selected UV printing, but the matching 2D drawing is missing (DWG/DXF/PDF).`);
         }
       }
       if (hasLaserMarking) {
         const has2D = hasCorresponding2DFile(fileManager.currentFileId);
         if (!has2D) {
-          errors.push(`❌ 文件"${fileData.file.name}"选择了激光打标，但缺少对应的2D图纸（DWG/DXF/PDF）。`);
+          errors.push(`❌ File "${fileData.file.name}" selected laser marking, but the matching 2D drawing is missing (DWG/DXF/PDF).`);
         }
       }
     }
@@ -1468,7 +1468,7 @@
     // 只检查当前选中的3D文件格式
     if (fileManager.currentFileId && fileData.file) {
       if (!isValidFile(fileData.file)) {
-        errors.push(`❌ 文件"${fileData.file.name}"格式不支持`);
+        errors.push(`❌ File "${fileData.file.name}" is not supported`);
       }
     }
 
@@ -1517,7 +1517,7 @@
           .replace(/[_\-\s]+/g, '') // 移除下划线、连字符、空格
           .replace(/[^\u4e00-\u9fa5a-z0-9]/g, ''); // 只保留中文、字母、数字
         
-        // 检查文件名是否匹配（支持多种匹配方式）
+      // Check whether filenames match (supports multiple strategies)
         if (twoDBaseName === baseName || 
             twoDBaseName.includes(baseName) || 
             baseName.includes(twoDBaseName) ||
@@ -1531,7 +1531,7 @@
     return false;
   }
 
-  // 检查两个文件名是否有共同的关键词
+  // Check whether two filenames share common keywords
   function hasCommonKeywords(name1, name2) {
     // 提取中文关键词
     const chineseWords1 = name1.match(/[\u4e00-\u9fa5]+/g) || [];
@@ -1587,7 +1587,7 @@
       const addSurfaceBtn = document.getElementById('add-surface-btn') || document.querySelector('.add-surface-btn');
       if (addSurfaceBtn) addSurfaceBtn.style.display = enabled ? 'inline-block' : 'none';
     }
-    if (tightestSelect) tightestSelect.value = config.tightest || 'GB/T 1804-2000 m级';
+    if (tightestSelect) tightestSelect.value = config.tightest || 'GB/T 1804-2000 m';
     if (roughnessSelect) roughnessSelect.value = config.roughness;
     if (qtyInput) qtyInput.value = config.quantity;
     if (noteTextarea) noteTextarea.value = config.note;
@@ -1798,7 +1798,7 @@
       try {
         threeDMeta = await uploadToShopifyFiles(fileData.file);
       } catch (e) {
-        console.error('❌ 3D 文件上传失败，文件名:', fileData.file.name, e);
+        console.error('❌ 3D file upload failed:', fileData.file.name, e);
         throw e;
       }
 
@@ -1813,30 +1813,30 @@
         requires_shipping: false,
         customAttributes: [
           { key: 'Order Type', value: '3D Model Quote' },
-          { key: '文件类型', value: '3D' },
-          { key: '客户姓名', value: customerInfo.name },
-          { key: '客户邮箱', value: customerInfo.email },
-          { key: '文件大小', value: (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
-          { key: '材料', value: config.material || '未指定' },
-          { key: '材料大类', value: config.materialCategory || getCategoryForMaterial(config.material) || '未指定' },
-          { key: '表面处理', value: surfaceText || '未指定' },
-          { key: '最严公差', value: config.tightest || 'GB/T 1804-2000 m级' },
-          { key: '表面粗糙度', value: config.roughness || 'Ra3.2' },
-          { key: '是否有螺纹', value: config.hasThread || 'no' },
-          { key: '是否有装配关系', value: config.hasAssembly || 'no' },
-          { key: '备注', value: config.note || '' },
+          { key: 'File Type', value: '3D' },
+          { key: 'Customer Name', value: customerInfo.name },
+          { key: 'Customer Email', value: customerInfo.email },
+          { key: 'File Size', value: (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
+          { key: 'Material', value: config.material || 'Not specified' },
+          { key: 'Material Category', value: config.materialCategory || getCategoryForMaterial(config.material) || 'Not specified' },
+          { key: 'Surface Finish', value: surfaceText || 'Not specified' },
+          { key: 'Tightest Tolerance', value: config.tightest || 'GB/T 1804-2000 m' },
+          { key: 'Surface Roughness', value: config.roughness || 'Ra3.2' },
+          { key: 'Threads', value: config.hasThread || 'no' },
+          { key: 'Assembly Features', value: config.hasAssembly || 'no' },
+          { key: 'Notes', value: config.note || '' },
           { key: 'Quote Status', value: 'Pending' },
-          { key: '文件ID', value: threeDMeta.fileId },
-          { key: 'Shopify文件ID', value: threeDMeta.shopifyFileId },
-          { key: 'Shopify文件URL', value: threeDMeta.shopifyFileUrl },
-          { key: '原始文件大小', value: String(threeDMeta.originalFileSize || fileData.file.size) },
+          { key: 'File ID', value: threeDMeta.fileId },
+          { key: 'Shopify File ID', value: threeDMeta.shopifyFileId },
+          { key: 'Shopify File URL', value: threeDMeta.shopifyFileUrl },
+          { key: 'Original File Size', value: String(threeDMeta.originalFileSize || fileData.file.size) },
           { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
         ],
       });
 
       // 4.2.2 查找对应的 2D 图纸，分别上传并创建 2D lineItem
       const twoDFiles = getCorresponding2DFiles(fileId) || [];
-      console.log(`3D 文件 ${fileData.file.name} 对应的 2D 文件:`, twoDFiles.map(f => f.name));
+      console.log(`3D file ${fileData.file.name} linked 2D files:`, twoDFiles.map(f => f.name));
 
       for (const twoD of twoDFiles) {
         const twoDData = fileManager.files.get(twoD.id);
@@ -1846,7 +1846,7 @@
         try {
           twoDMeta = await uploadToShopifyFiles(twoDData.file);
         } catch (e) {
-          console.error('❌ 2D 文件上传失败，文件名:', twoDData.file.name, e);
+          console.error('❌ 2D file upload failed:', twoDData.file.name, e);
           continue; // 不阻断整个订单
         }
 
@@ -1857,22 +1857,22 @@
           requires_shipping: false,
           customAttributes: [
             { key: 'Order Type', value: '2D Drawing' },
-            { key: '文件类型', value: '2D' },
-            { key: '关联3D文件', value: fileData.file.name },
-            { key: '客户姓名', value: customerInfo.name },
-            { key: '客户邮箱', value: customerInfo.email },
-            { key: '文件大小', value: (twoDData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
-            { key: '备注', value: config.note || '' },
-            { key: '文件ID', value: twoDMeta.fileId },
-            { key: 'Shopify文件ID', value: twoDMeta.shopifyFileId },
-            { key: 'Shopify文件URL', value: twoDMeta.shopifyFileUrl },
-            { key: '原始文件大小', value: String(twoDMeta.originalFileSize || twoDData.file.size) },
+            { key: 'File Type', value: '2D' },
+            { key: 'Linked 3D File', value: fileData.file.name },
+            { key: 'Customer Name', value: customerInfo.name },
+            { key: 'Customer Email', value: customerInfo.email },
+            { key: 'File Size', value: (twoDData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
+            { key: 'Notes', value: config.note || '' },
+            { key: 'File ID', value: twoDMeta.fileId },
+            { key: 'Shopify File ID', value: twoDMeta.shopifyFileId },
+            { key: 'Shopify File URL', value: twoDMeta.shopifyFileUrl },
+            { key: 'Original File Size', value: String(twoDMeta.originalFileSize || twoDData.file.size) },
             { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
           ],
         });
       }
 
-      console.log(`为 ${fileData.file.name} 创建订单，lineItems 数量:`, lineItems.length);
+      console.log(`Creating order for ${fileData.file.name}; lineItems:`, lineItems.length);
 
       // 4.3 为该 3D 文件创建独立的草稿订单
       const requestBody = {
@@ -1958,18 +1958,18 @@
         quantity: parseInt(config.quantity || 1),
         properties: {
           'Order Type': '3D Model Quote',
-          '客户姓名': customerInfo.name,
-          '客户邮箱': customerInfo.email,
-          '零件名称': fileData.file.name,
-          '文件大小': (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB',
-          '材料': config.material || '未指定',
-          '材料大类': config.materialCategory || getCategoryForMaterial(config.material) || '未指定',
-          '表面处理': surfaceText || '未指定',
-          '最严公差': config.tightest || 'GB/T 1804-2000 m级',
-          '粗糙度': config.roughness || 'Ra3.2',
-          '螺纹': config.hasThread || 'no',
-          '装配': config.hasAssembly || 'no',
-          '备注': config.note || '',
+          'Customer Name': customerInfo.name,
+          'Customer Email': customerInfo.email,
+          'Part Name': fileData.file.name,
+          'File Size': (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB',
+          'Material': config.material || 'Not specified',
+          'Material Category': config.materialCategory || getCategoryForMaterial(config.material) || 'Not specified',
+          'Surface Finish': surfaceText || 'Not specified',
+          'Tightest Tolerance': config.tightest || 'GB/T 1804-2000 m',
+          'Surface Roughness': config.roughness || 'Ra3.2',
+          'Threads': config.hasThread || 'no',
+          'Assembly Features': config.hasAssembly || 'no',
+          'Notes': config.note || '',
           'Quote Status': 'Pending',
           '_uuid': Date.now() + '-' + Math.random().toString(36).substr(2, 9)
         }
@@ -2059,7 +2059,7 @@
         quantity: parseInt(config.quantity || 1),
         material: config.material || '未指定',
         surfaceTreatment: surfaceText || '待确认',
-        tightest: config.tightest || 'GB/T 1804-2000 m级',
+        tightest: config.tightest || 'GB/T 1804-2000 m',
         roughness: config.roughness || 'Ra3.2',
         hasThread: config.hasThread || 'no',
         hasAssembly: config.hasAssembly || 'no',
@@ -2252,31 +2252,31 @@
     }
     
     // 如果无法获取或邮箱无效，提示用户输入
-    console.log('⚠️ 无法自动获取客户信息，需要手动输入');
+    console.log('⚠️ Unable to auto-detect customer info; requesting manual input');
     let name, email;
     
     do {
-      name = prompt('请输入您的姓名:');
+      name = prompt('Enter your name:');
       if (!name) {
-        throw new Error('客户姓名不能为空');
+        throw new Error('Name is required');
       }
     } while (!name.trim());
     
     do {
-      email = prompt('请输入您的邮箱地址:');
+      email = prompt('Enter your email:');
       if (!email) {
-        throw new Error('客户邮箱不能为空');
+        throw new Error('Email is required');
       }
       
       // 验证邮箱格式
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
-        alert('邮箱格式不正确，请重新输入');
+        alert('Invalid email format. Please try again.');
         email = null;
       }
     } while (!email);
     
-    console.log('✅ 使用手动输入的客户信息:', { name: name.trim(), email: email.trim().toLowerCase() });
+    console.log('✅ Using manually entered customer info:', { name: name.trim(), email: email.trim().toLowerCase() });
     return { 
       name: name.trim(), 
       email: email.trim().toLowerCase() 
@@ -2322,7 +2322,7 @@
       normalizeSurfaceTreatments(currentFileData.config.surfaceTreatments, currentFileData.config.surfaceEnabled !== false, rule),
       currentFileData.config.surfaceEnabled !== false
     );
-    if (propTightest) propTightest.value = currentFileData.config.tightest || 'GB/T 1804-2000 m级';
+    if (propTightest) propTightest.value = currentFileData.config.tightest || 'GB/T 1804-2000 m';
     if (propRoughness) propRoughness.value = currentFileData.config.roughness || '';
     if (propHasThread) propHasThread.value = currentFileData.config.hasThread || '';
     if (propHasAssembly) propHasAssembly.value = currentFileData.config.hasAssembly || '';
@@ -2330,7 +2330,7 @@
     if (propFileName) propFileName.value = currentFileData.file.name;
     if (propFileSize) propFileSize.value = formatFileSize(currentFileData.file.size);
 
-    // 额外：将名称写入隐藏字段（若主题使用表单提交路径时，也能显示名称）
+    // Also write a display name into a hidden property (legacy path support)
     const ensureHidden = (id, value) => {
       let el = document.getElementById(id);
       if (!el) {
@@ -2342,10 +2342,7 @@
       }
       el.value = value;
     };
-    ensureHidden('零件名称', currentFileData.file.name);
-    ensureHidden('文件名称', currentFileData.file.name);
-    ensureHidden('文件名', currentFileData.file.name);
-    ensureHidden('名称', currentFileData.file.name);
+    ensureHidden('Part Name', currentFileData.file.name);
 
     console.log('Form data updated for file:', currentFileData.file.name);
   }
@@ -2356,14 +2353,14 @@
       // 使用文件存储管理器上传文件
       if (window.fileStorageManager) {
         const fileUrl = await window.fileStorageManager.uploadFile(file, fileId);
-        console.log('文件上传成功:', fileUrl);
+        console.log('File upload succeeded:', fileUrl);
         return fileUrl;
       } else {
-        console.warn('文件存储管理器未加载，使用备用方案');
+        console.warn('File storage manager not loaded; using fallback');
         return null;
       }
     } catch (error) {
-      console.error('文件上传失败:', error);
+      console.error('File upload failed:', error);
       // 如果上传失败，返回null，后续会使用备用方案
       return null;
     }
@@ -2413,7 +2410,7 @@
     formData.append('properties[Material Category]', fileData.config.materialCategory || getCategoryForMaterial(fileData.config.material) || '');
     formData.append('properties[Material]', fileData.config.material);
     formData.append('properties[Surface Finish]', surfaceText);
-    formData.append('properties[Tightest Tolerance]', fileData.config.tightest || 'GB/T 1804-2000 m级');
+    formData.append('properties[Tightest Tolerance]', fileData.config.tightest || 'GB/T 1804-2000 m');
     formData.append('properties[Surface Roughness]', fileData.config.roughness);
     formData.append('properties[Threads]', fileData.config.hasThread);
     formData.append('properties[Assembly Features]', fileData.config.hasAssembly);
@@ -2948,7 +2945,7 @@
     return validExtensions.includes(extension);
   }
 
-  // 验证文件名（用于ZIP解压，仅支持STP/STEP和2D文件）
+  // Validate filename (for ZIP extraction; only STP/STEP and 2D drawings are supported)
   function isValidFileName(fileName) {
     const validExtensions = ['.stp', '.step', '.dwg', '.dxf', '.pdf'];
     return validExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
@@ -3086,8 +3083,8 @@
               <path d="${iconPath}"></path>
             </svg>
           </div>
-          <p>${is2D ? '2D图纸已加载' : '3D模型已加载'}</p>
-          ${fileData.dimensions ? `<p style="font-size: 12px; color: #999;">尺寸: ${fileData.dimensions.width.toFixed(1)} x ${fileData.dimensions.height.toFixed(1)} x ${fileData.dimensions.depth.toFixed(1)} mm</p>` : ''}
+          <p>${is2D ? '2D drawing loaded' : '3D model loaded'}</p>
+          ${fileData.dimensions ? `<p style="font-size: 12px; color: #999;">Dimensions: ${fileData.dimensions.width.toFixed(1)} x ${fileData.dimensions.height.toFixed(1)} x ${fileData.dimensions.depth.toFixed(1)} mm</p>` : ''}
         </div>
       `;
     }
@@ -3115,7 +3112,7 @@
             <polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline>
             <line x1="12" y1="22.08" x2="12" y2="12"></line>
           </svg>
-          <p style="margin: 0; font-size: 16px; text-align: center;">上传3D模型文件以查看预览</p>
+          <p style="margin: 0; font-size: 16px; text-align: center;">Upload a 3D file to preview</p>
         </div>
       `;
     }
@@ -3458,7 +3455,7 @@
       btnCancel.onclick = () => { document.body.removeChild(overlay); resolve(false); };
 
       const btnPrimary = document.createElement('button');
-      btnPrimary.textContent = '去完善信息';
+      btnPrimary.textContent = 'Complete profile';
       btnPrimary.style.cssText = 'background:#1976d2;color:#fff;border:1px solid #1976d2;border-radius:6px;padding:8px 14px;cursor:pointer;';
       btnPrimary.onclick = () => {
         // 优先引导到登录或地址页
@@ -3499,35 +3496,35 @@
       modal.style.cssText = 'width:min(560px,92vw);background:#fff;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.2);overflow:hidden;';
       const header = document.createElement('div');
       header.style.cssText = 'padding:16px 20px;border-bottom:1px solid #eee;font-weight:600;';
-      header.textContent = '确认信息';
+      header.textContent = 'Confirm details';
       const body = document.createElement('div');
       body.style.cssText = 'padding:16px 20px;display:flex;flex-direction:column;gap:12px;font-size:14px;color:#333;';
 
       const email = document.createElement('div');
-      email.innerHTML = '<strong>邮箱：</strong>' + (state.email || '—');
+      email.innerHTML = '<strong>Email:</strong> ' + (state.email || '—');
       body.appendChild(email);
 
       const addr = state.address || {};
       const addressBlock = document.createElement('div');
-      addressBlock.innerHTML = '<strong>账单地址：</strong>' +
+      addressBlock.innerHTML = '<strong>Billing address:</strong> ' +
         [addr.first_name, addr.last_name].filter(Boolean).join(' ') + ' ' +
-        [addr.address1, addr.address2, addr.city, addr.province, addr.zip, addr.country].filter(Boolean).join('，');
+        [addr.address1, addr.address2, addr.city, addr.province, addr.zip, addr.country].filter(Boolean).join(', ');
       body.appendChild(addressBlock);
 
       const tip = document.createElement('div');
       tip.style.cssText = 'font-size:12px;color:#666;';
-      tip.textContent = '请确认以上信息准确无误，点击“确认信息”后将提交询价到购物车。';
+      tip.textContent = 'Please confirm the details above. Click “Confirm” to submit your RFQ to the cart.';
       body.appendChild(tip);
 
       const actions = document.createElement('div');
       actions.style.cssText = 'padding:14px 20px;border-top:1px solid #eee;display:flex;gap:10px;justify-content:flex-end;';
       const btnBack = document.createElement('button');
-      btnBack.textContent = '返回修改';
+      btnBack.textContent = 'Back';
       btnBack.style.cssText = 'background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:8px 14px;cursor:pointer;';
       btnBack.onclick = () => { document.body.removeChild(overlay); resolve(false); };
 
       const btnOk = document.createElement('button');
-      btnOk.textContent = '确认信息';
+      btnOk.textContent = 'Confirm';
       btnOk.style.cssText = 'background:#1976d2;color:#fff;border:1px solid #1976d2;border-radius:6px;padding:8px 14px;cursor:pointer;';
       btnOk.onclick = () => { document.body.removeChild(overlay); resolve(true); };
 
@@ -3543,25 +3540,25 @@
     });
   }
 
-  // 校验一组文件（传入集合，若不传则校验全部）
+  // Validate a set of files (if not provided, validate all)
   function validateFilesSet(fileIdIterable) {
     const ids = fileIdIterable ? Array.from(fileIdIterable) : Array.from(fileManager.files.keys());
     const errors = [];
     for (const id of ids) {
       const fd = fileManager.files.get(id);
-      if (!fd) { errors.push(`文件ID ${id} 不存在`); continue; }
-      if (!isValidFile(fd.file)) { errors.push(`❌ 文件"${fd.file.name}"格式不支持`); }
+      if (!fd) { errors.push(`File ID ${id} does not exist`); continue; }
+      if (!isValidFile(fd.file)) { errors.push(`❌ File "${fd.file.name}" is not supported`); }
       if (!is3DFile(fd.file.name)) { continue; }
       const need2D = fd.config && (fd.config.hasThread === 'yes' || fd.config.hasAssembly === 'yes');
       if (need2D && !hasCorresponding2DFile(id)) {
-        const reason = fd.config.hasThread === 'yes' ? '螺纹' : (fd.config.hasAssembly === 'yes' ? '装配关系' : '特殊要求');
-        errors.push(`❌ 文件"${fd.file.name}"已选择有${reason}，但缺少对应的2D图纸（DWG/DXF/PDF）`);
+        const reason = fd.config.hasThread === 'yes' ? 'threads' : (fd.config.hasAssembly === 'yes' ? 'assembly features' : 'special requirements');
+        errors.push(`❌ File "${fd.file.name}" requires 2D drawings for ${reason}, but none were provided (DWG/DXF/PDF).`);
       }
     }
     return { ok: errors.length === 0, errors };
   }
 
-  // ===== 报价面板（全屏独立界面） =====
+  // ===== Quote panel (full-screen) =====
   function ensureQuotePanel() {
     if (document.getElementById('quote-panel-overlay')) return;
     const style = document.createElement('style');
@@ -3586,9 +3583,9 @@
     panel.id = 'quote-panel';
     panel.innerHTML = `
       <div id="quote-panel-header">
-        <div id="quote-panel-title">询价明细</div>
+        <div id="quote-panel-title">Quote details</div>
         <div>
-          <button id="quote-panel-close">关闭</button>
+          <button id="quote-panel-close">Close</button>
         </div>
       </div>
       <div id="quote-panel-body"></div>
