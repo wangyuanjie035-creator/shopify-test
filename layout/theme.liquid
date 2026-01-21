@@ -134,12 +134,25 @@
             'a, button, summary, span, p, h1, h2, h3, h4, h5, h6, li, div'
           );
           candidates.forEach((el) => {
-            if (!el || el.children.length > 0) return;
+            if (!el) return;
             const txt = (el.textContent || '').trim();
             if (!txt) return;
-            const replaced = map.get(txt);
-            if (replaced && replaced !== txt) {
-              el.textContent = replaced;
+
+            // Exact match (ignoring whitespace)
+            const compact = txt.replace(/\s+/g, '');
+            for (const [cn, en] of map.entries()) {
+              if (compact === cn) {
+                el.textContent = en;
+                return;
+              }
+            }
+
+            // Substring match (useful when menus include extra wrappers/icons)
+            for (const [cn, en] of map.entries()) {
+              if (txt.includes(cn)) {
+                el.textContent = txt.replaceAll(cn, en);
+                return;
+              }
             }
           });
         };
