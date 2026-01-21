@@ -3,7 +3,7 @@
     "main": {
       "type": "model-uploader",
       "settings": {
-        "title": "3D模型上传与报价",
+        "title": "3D Upload & Quote",
         "product": null,
         "color_scheme": "background-1",
         "padding_top": 36,

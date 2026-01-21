@@ -85,10 +85,10 @@
       <div class="cart__quote-summary">
         <div class="cart__summary-item cart__quote-info">
           <span class="cart__quote-label cart-primary-typography">
-            {{ 'content.quote_items' | t: count: quote_items_count | default: '报价商品' }}
+            {{ 'content.quote_items' | t: count: quote_items_count | default: 'Quoted items' }}
           </span>
           <span class="cart__quote-status cart-secondary-typography">
-            {{ 'content.quote_pending' | t | default: '报价中' }}
+            {{ 'content.quote_pending' | t | default: 'Quote in progress' }}
           </span>
         </div>
         {% if regular_items_count > 0 %}
@@ -105,7 +105,7 @@
         {% else %}
           <div class="cart__summary-item cart__quote-only">
             <span class="cart__quote-only-text cart-primary-typography">
-              {{ 'content.quote_only_message' | t | default: '购物车中只有报价商品，总价将在报价完成后显示' }}
+              {{ 'content.quote_only_message' | t | default: 'Your cart contains quote-only items. Total will be shown once quoted.' }}
             </span>
           </div>
         {% endif %}
@@ -152,7 +152,7 @@
     form="cart-form"
   >
     {% if regular_items_count == 0 and quote_items_count > 0 %}
-      {{ 'content.quote_checkout_disabled' | t | default: '请等待报价完成' }}
+      {{ 'content.quote_checkout_disabled' | t | default: 'Please wait until your quote is ready' }}
     {% else %}
       {{ 'content.checkout' | t }}
     {% endif %}
@@ -248,7 +248,7 @@
     font-size: var(--cart-font-size--sm);
   }
 
-  /* 购物车摘要整体样式优化 */
+  /* Cart summary styling */
   .cart__summary-totals {
     background: #f8f9fa;
     border-radius: 12px;
@@ -258,7 +258,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
-  /* 报价信息样式优化 */
+  /* Quote info styling */
   .cart__quote-info {
     background: linear-gradient(135deg, #e3f2fd, #bbdefb);
     border: 2px solid #1976d2;
@@ -292,7 +292,7 @@
     box-shadow: 0 2px 6px rgba(25, 118, 210, 0.3);
   }
 
-  /* 报价专用消息样式 */
+  /* Quote-only message styling */
   .cart__quote-only {
     background: linear-gradient(135deg, #fff3e0, #ffe0b2);
     border: 2px solid #ff9800;
@@ -314,7 +314,7 @@
     font-size: 18px;
   }
 
-  /* 结账按钮样式优化 */
+  /* Checkout button styling */
   .cart__checkout-button {
     background: linear-gradient(135deg, #1976d2, #1565c0);
     border: none;
@@ -341,7 +341,7 @@
     box-shadow: none;
   }
 
-  /* 常规商品总计样式 */
+  /* Regular items total styling */
   .cart__regular-total {
     background: #fff;
     border: 2px solid #4caf50;

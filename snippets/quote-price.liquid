@@ -1,6 +1,6 @@
 {%- doc -%}
   Renders price for quote orders (3D model upload orders).
-  Shows "报价中" (Quote Pending) instead of actual price for quote orders.
+  Shows "Quote Pending" instead of actual price for quote orders.
   
   @param {object} item - The cart item
 {%- enddoc -%}
@@ -23,9 +23,9 @@
   if is_quote_order
     # Show quote status instead of price
     if quote_status == 'Pending'
-      assign display_text = '报价中'
+      assign display_text = 'Quote pending'
     elsif quote_status == 'Quoted'
-      assign display_text = '已报价'
+      assign display_text = 'Quoted'
       # Try to show quoted price if provided
       for property in item.properties
         if property.first == 'Quoted Price' and property.last != blank
@@ -33,9 +33,9 @@
         endif
       endfor
     elsif quote_status == 'Processing'
-      assign display_text = '处理中'
+      assign display_text = 'Processing'
     else
-      assign display_text = '报价中'
+      assign display_text = 'Quote pending'
     endif
     
     # Add styling for quote status
@@ -61,10 +61,10 @@
   {% if is_quote_order %}
     <span class="quote-status-text">{{ display_text }}</span>
     {% if quote_status == 'Quoted' and quoted_price != '' %}
-      <div class="quote-status-note">报价金额：¥{{ quoted_price }}</div>
+      <div class="quote-status-note">Quoted price: {{ quoted_price }}</div>
     {% endif %}
     {% if quote_status == 'Pending' %}
-      <div class="quote-status-note">我们将在24小时内为您提供详细报价</div>
+      <div class="quote-status-note">We will email your quote within 24 hours.</div>
     {% endif %}
   {% else %}
     <text-component value="{{ display_text | strip_html }}">{{ display_text }}</text-component>

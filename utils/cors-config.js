@@ -1,9 +1,9 @@
 /**
- * CORS配置 - 统一处理跨域请求
+ * CORS config - unified handling for cross-origin requests
  */
 
 export function setCorsHeaders(req, res) {
-  // 允许的来源（Shopify 店铺 + 本地调试）
+  // Allowed origins (Shopify store + local dev)
   const allowedOrigins = new Set([
     'https://sain-pdc-test.myshopify.com',
     'http://localhost:3000',
@@ -11,7 +11,7 @@ export function setCorsHeaders(req, res) {
     'null',
   ]);
 
-  // 优先使用 Origin，其次从 Referer 提取
+  // Prefer Origin; fallback to Referer
   const headerOrigin = req.headers.origin || '';
   const referer = req.headers.referer || '';
   let origin = headerOrigin;
@@ -21,12 +21,12 @@ export function setCorsHeaders(req, res) {
     } catch {}
   }
 
-  // 回显允许的来源，默认店铺域名
+  // Echo allowed origin; default to store domain
   const allow = allowedOrigins.has(origin) ? origin : 'https://sain-pdc-test.myshopify.com';
   res.setHeader('Access-Control-Allow-Origin', allow);
   res.setHeader('Vary', 'Origin');
 
-  // 允许的动词与头
+  // Allowed methods and headers
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.setHeader('Access-Control-Allow-Credentials', 'true');

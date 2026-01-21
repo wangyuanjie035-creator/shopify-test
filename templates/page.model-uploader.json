@@ -11,7 +11,7 @@
   "sections": {
     "uploader": {
       "type": "model-uploader",
-      "settings": { "title": "上传 3D 模型" }
+      "settings": { "title": "Upload 3D Files" }
     }
   },
   "order": ["uploader"]

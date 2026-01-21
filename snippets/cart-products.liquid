@@ -233,13 +233,13 @@
                   {%- endfor -%}
 
                   {%- comment -%}
-                    显示上传的文件（仅对报价订单）
+                    Show uploaded file reference (quote items only)
                   {%- endcomment -%}
                   {% if is_quote_order %}
                     {% liquid
                       assign uploaded_files = ''
                       for property in item.properties
-                        if property.first == '上传文件' and property.last != blank
+                        if property.first == 'Uploaded File' and property.last != blank
                           assign uploaded_files = property.last
                           break
                         endif
@@ -247,7 +247,7 @@
                     %}
                     {% if uploaded_files != blank %}
                       <div class="cart-items__uploaded-files">
-                        <dt style="font-weight:600;color:#333;margin-bottom:8px;display:block;">📎 上传文件：</dt>
+                        <dt style="font-weight:600;color:#333;margin-bottom:8px;display:block;">📎 Uploaded file:</dt>
                         <dd style="margin-left:0;">
                           {% if uploaded_files contains ',' %}
                             {% assign file_list = uploaded_files | split: ',' %}
@@ -310,7 +310,7 @@
                   </div>
 
                   {%- comment -%}
-                    当为报价商品，若属性中包含 Invoice URL，则显示“去支付”按钮。
+                    For quote items: if Invoice URL exists, show a checkout button.
                   {%- endcomment -%}
                   {% liquid
                     assign is_quote_order = false
@@ -330,10 +330,10 @@
                   %}
                   {% if is_quote_order %}
                     {% if quote_status == 'Pending' %}
-                      <div class="quote-status-note">48小时内将订单价格发送至您的邮箱</div>
+                      <div class="quote-status-note">We will email your quote within 48 hours.</div>
                     {% elsif quote_status == 'Quoted' and invoice_url != '' %}
                       <div style="margin-top:10px;text-align:right">
-                        <a href="{{ invoice_url }}" class="button" target="_blank" rel="noopener">立即下单</a>
+                        <a href="{{ invoice_url }}" class="button" target="_blank" rel="noopener">Proceed to checkout</a>
                       </div>
                     {% endif %}
                   {% endif %}
@@ -829,7 +829,7 @@
     display: inline;
   }
 
-  /* 3D模型报价服务特殊样式 */
+  /* Quote service styling */
   .cart-items__properties {
     background: #f8f9fa;
     border-radius: 8px;
@@ -849,7 +849,7 @@
     margin-left: 0;
   }
 
-  /* 报价状态特殊样式 */
+  /* Quote status styling */
   .quote-status {
     display: flex;
     flex-direction: column;
@@ -875,7 +875,7 @@
     max-width: 200px;
   }
 
-  /* 商品标题样式优化 */
+  /* Item title styling */
   .cart-items__title {
     font-size: 18px;
     font-weight: 600;
@@ -883,7 +883,7 @@
     margin-bottom: 8px;
   }
 
-  /* 数量选择器样式优化 */
+  /* Quantity selector styling */
   .cart-items__quantity {
     background: #fff;
     border: 2px solid #e0e0e0;
@@ -892,7 +892,7 @@
     margin-top: 12px;
   }
 
-  /* 删除按钮样式优化 */
+  /* Remove button styling */
   .cart-items__remove {
     background: #ffebee;
     border: 1px solid #ffcdd2;
@@ -906,7 +906,7 @@
     transform: scale(1.05);
   }
 
-  /* 上传文件显示样式 */
+  /* Uploaded file styling */
   .cart-items__uploaded-files {
     margin-top: 12px;
     padding: 12px;

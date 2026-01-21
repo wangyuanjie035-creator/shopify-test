@@ -928,7 +928,7 @@
           <div class="order-id">${order.name}</div>
           <div class="order-status ${(() => {
             const statusText = getOrderStatusText(order);
-            if (statusText === '无法加工') return 'status-unprocessable';
+            if (statusText === 'Not manufacturable') return 'status-unprocessable';
             return order.status === 'pending' ? 'status-pending' : 'status-quoted';
           })()}">
             ${getOrderStatusText(order)}
@@ -936,71 +936,67 @@
         </div>
         <div class="order-info">
           <div>
-            <div><strong>客户邮箱:</strong> ${order.email || '未提供'}</div>
-            <div><strong>创建时间:</strong> ${new Date(order.createdAt).toLocaleString('zh-CN')}</div>
+            <div><strong>Customer email:</strong> ${order.email || 'Not provided'}</div>
+            <div><strong>Created:</strong> ${new Date(order.createdAt).toLocaleString('en-US')}</div>
           </div>
           <div>
-            <div><strong>商品:</strong> ${order.lineItems?.[0]?.title || '未指定'}</div>
-            <div><strong>数量:</strong> ${order.lineItems?.[0]?.quantity || 1}</div>
-            <div><strong>价格:</strong> $${order.totalPrice || '0.00'}</div>
+            <div><strong>Item:</strong> ${order.lineItems?.[0]?.title || 'Not specified'}</div>
+            <div><strong>Qty:</strong> ${order.lineItems?.[0]?.quantity || 1}</div>
+            <div><strong>Total:</strong> $${order.totalPrice || '0.00'}</div>
           </div>
         </div>
         ${order.lineItems?.[0]?.customAttributes ? `
         <div class="order-params">
           ${(() => {
-            const customAttributes = order.lineItems[0].customAttributes;
+            // Prefer the main 3D line item (some orders include 2D drawings as separate line items)
+            const findAttr = (attrs, keys) => {
+              for (const k of keys) {
+                const a = attrs.find(x => x.key === k);
+                if (a && a.value !== undefined && a.value !== null) return a;
+              }
+              return null;
+            };
+
+            const pickMainItem = (items) => {
+              if (!Array.isArray(items) || items.length === 0) return items?.[0] || null;
+              const is3D = (it) => {
+                const attrs = it.customAttributes || [];
+                const t = findAttr(attrs, ['File Type', '文件类型']);
+                const v = (t?.value || '').toString().trim();
+                if (v === '3D') return true;
+                const orderType = findAttr(attrs, ['Order Type', '订单类型']);
+                return (orderType?.value || '').toString().toLowerCase().includes('3d');
+              };
+              return items.find(is3D) || items[0];
+            };
+
+            const mainItem = pickMainItem(order.lineItems);
+            const customAttributes = mainItem?.customAttributes || [];
             const params = [];
             
-            // 按客户上传界面的顺序显示参数
+            // Display parameters in the same order as the customer upload UI (EN + CN compatible)
             const paramOrder = [
-              { key: '材料大类', label: '材料类别' },
-              { key: '材料', label: '材料类型' },
-              { key: '表面处理', label: '表面处理' },
-              { key: '最严公差', label: '最严公差' },
-              { key: '表面粗糙度', label: '表面粗糙度' },
-              { key: '是否有螺纹', label: '是否有螺纹' },
-              { key: '是否有装配关系', label: '是否有装配关系' }
+              { keys: ['Material Category', '材料大类'], label: 'Material category' },
+              { keys: ['Material', '材料'], label: 'Material' },
+              { keys: ['Surface Finish', '表面处理'], label: 'Surface finish' },
+              { keys: ['Tightest Tolerance', '最严公差', '精度', '精度等级', '公差标准'], label: 'Tightest tolerance' },
+              { keys: ['Surface Roughness', '表面粗糙度'], label: 'Surface roughness' },
+              { keys: ['Threads', '是否有螺纹'], label: 'Threads' },
+              { keys: ['Assembly Features', '是否有装配关系', '是否有装配标记'], label: 'Assembly features' },
+              { keys: ['Notes', '备注'], label: 'Notes' }
             ];
             
-            // 优先显示新字段
-            paramOrder.forEach(config => {
-              const attr = customAttributes.find(a => a.key === config.key);
-              if (attr && attr.value && attr.value !== '未指定' && attr.value !== '未提供') {
-                let displayValue = attr.value;
-                if (config.key === '是否有螺纹' || config.key === '是否有装配关系') {
-                  displayValue = (attr.value === 'yes' || attr.value === '是') ? '是' : '否';
-                }
-                params.push(`<div class="param-item"><strong>${config.label}:</strong> ${displayValue}</div>`);
+            paramOrder.forEach(cfg => {
+              const attr = findAttr(customAttributes, cfg.keys);
+              if (!attr || !attr.value) return;
+              const v = String(attr.value);
+              if (!v || v === '未指定' || v === '未提供' || v === 'Not specified' || v === 'Not provided') return;
+              let displayValue = v;
+              if (cfg.label === 'Threads' || cfg.label === 'Assembly features') {
+                const vv = v.toLowerCase();
+                displayValue = (vv === 'yes' || vv === 'true' || v === '是') ? 'Yes' : 'No';
               }
-            });
-            
-            // 兼容旧字段（如果新字段不存在）
-            const legacyParams = ['颜色', '精度', '精度等级', '公差标准', '颜色与表面', '是否有装配标记', '缩放比例'];
-            legacyParams.forEach(key => {
-              const hasNewField = paramOrder.some(config => {
-                const mapping = {
-                  '颜色': '材料',
-                  '精度': '最严公差',
-                  '精度等级': '最严公差',
-                  '公差标准': '最严公差',
-                  '颜色与表面': '表面处理',
-                  '是否有装配标记': '是否有装配关系'
-                };
-                return mapping[key] === config.key;
-              });
-              
-              if (!hasNewField) {
-                const attr = customAttributes.find(a => a.key === key);
-                if (attr && attr.value && attr.value !== '未指定' && attr.value !== '未提供') {
-                  let displayValue = attr.value;
-                  if (key === '是否有装配标记') {
-                    displayValue = (attr.value === 'yes' || attr.value === '是') ? '是' : '否';
-                  } else if (key === '缩放比例') {
-                    displayValue = attr.value.includes('%') ? attr.value : attr.value + '%';
-                  }
-                  params.push(`<div class="param-item"><strong>${key}:</strong> ${displayValue}</div>`);
-                }
-              }
+              params.push(`<div class="param-item"><strong>${cfg.label}:</strong> ${displayValue}</div>`);
             });
             
             return params.join('');
@@ -1008,37 +1004,37 @@
         </div>
         ` : ''}
         <div class="order-actions">
-          <button class="action-btn download" onclick="downloadOrderFile('${order.id}')" title="下载文件">
+          <button class="action-btn download" onclick="downloadOrderFile('${order.id}')" title="Download files">
             📄
           </button>
-          <button class="action-btn preview" onclick="previewOrderFile('${order.id}')" title="预览文件">
+          <button class="action-btn preview" onclick="previewOrderFile('${order.id}')" title="Preview">
             👁️
           </button>
           ${order.status === 'pending' ? `
             <button class="action-btn quote" onclick="openQuoteModal('${order.id}', '${order.email}', '${order.name}')">
               💰 添加报价
             </button>
-            <button class="action-btn reject" onclick="markAsUnprocessable('${order.id}', '${order.email}', '${order.name}')" title="标记为无法加工">
-              ⚠️ 无法加工
+            <button class="action-btn reject" onclick="markAsUnprocessable('${order.id}', '${order.email}', '${order.name}')" title="Mark as not manufacturable">
+              ⚠️ Not manufacturable
             </button>
           ` : (() => {
             const statusText = getOrderStatusText(order);
-            const isUnprocessable = statusText === '无法加工';
+            const isUnprocessable = statusText === 'Not manufacturable';
             return `
               <button class="action-btn" onclick="viewQuote('${order.id}')">
-                👁️ 查看报价
+                👁️ View quote
               </button>
               ${!isUnprocessable ? `
-                <button class="action-btn email" onclick="sendInvoiceEmail('${order.id}', '${order.email}', '${order.name}')" title="发送发票邮件">
-                  📧 发送邮件
+                <button class="action-btn email" onclick="sendInvoiceEmail('${order.id}', '${order.email}', '${order.name}')" title="Send invoice email">
+                  📧 Send email
                 </button>
               ` : ''}
             `;
           })()}
-          <button class="action-btn guide" onclick="showCustomerGuide('${order.id}', '${order.email}')" title="客户操作指南">
+          <button class="action-btn guide" onclick="showCustomerGuide('${order.id}', '${order.email}')" title="Customer guide">
             📋
           </button>
-          <button class="action-btn delete" onclick="deleteQuote('${order.id}')" title="删除">
+          <button class="action-btn delete" onclick="deleteQuote('${order.id}')" title="Delete">
             🗑️
           </button>
         </div>
@@ -1471,17 +1467,35 @@
         return;
       }
 
-      const lineItem = order.lineItems[0];
-      const customAttributes = lineItem.customAttributes || [];
+      // Prefer main 3D line item for params/file preview
+      const findAttr = (attrs, keys) => {
+        for (const k of keys) {
+          const a = attrs.find(x => x.key === k);
+          if (a && a.value !== undefined && a.value !== null) return a;
+        }
+        return null;
+      };
+      const pickMainItem = (items) => {
+        if (!Array.isArray(items) || items.length === 0) return items?.[0] || null;
+        const is3D = (it) => {
+          const attrs = it.customAttributes || [];
+          const t = findAttr(attrs, ['File Type', '文件类型']);
+          const v = (t?.value || '').toString().trim();
+          return v === '3D';
+        };
+        return items.find(is3D) || items[0];
+      };
+      const lineItem = pickMainItem(order.lineItems);
+      const customAttributes = lineItem?.customAttributes || [];
       
       let fileName = '未知文件';
       let fileData = '';
       
       customAttributes.forEach(attr => {
-        if (attr.key === '文件') {
+        if (attr.key === 'File' || attr.key === '文件') {
           fileName = attr.value;
         }
-        if (attr.key === '文件数据') {
+        if (attr.key === 'File Data' || attr.key === '文件数据') {
           fileData = attr.value;
         }
       });

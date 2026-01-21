@@ -98,10 +98,10 @@
             <option value="PLA">PLA</option>
             <option value="ABS" selected>ABS</option>
             <option value="PETG">PETG</option>
-            <option value="尼龙">Nylon</option>
-            <option value="树脂">Resin</option>
-            <option value="金属">Metal</option>
-            <option value="其他">Other</option>
+            <option value="Nylon">Nylon</option>
+            <option value="Resin">Resin</option>
+            <option value="Metal">Metal</option>
+            <option value="Other">Other</option>
           </select>
         </div>
         
@@ -109,11 +109,11 @@
         <div class="form-group">
           <label for="color">Color / Finish</label>
           <select id="color" name="color">
-            <option value="自然色" selected>Natural</option>
-            <option value="白色">White</option>
-            <option value="黑色">Black</option>
-            <option value="透明">Clear</option>
-            <option value="其他">Other</option>
+            <option value="Natural" selected>Natural</option>
+            <option value="White">White</option>
+            <option value="Black">Black</option>
+            <option value="Clear">Clear</option>
+            <option value="Other">Other</option>
           </select>
         </div>
         
@@ -121,9 +121,9 @@
         <div class="form-group">
           <label for="precision">Precision</label>
           <select id="precision" name="precision">
-            <option value="标准 (±0.1mm)" selected>Standard (±0.1mm)</option>
-            <option value="高精度 (±0.05mm)">High (±0.05mm)</option>
-            <option value="超高精度 (±0.02mm)">Ultra (±0.02mm)</option>
+            <option value="Standard (±0.1mm)" selected>Standard (±0.1mm)</option>
+            <option value="High (±0.05mm)">High (±0.05mm)</option>
+            <option value="Ultra (±0.02mm)">Ultra (±0.02mm)</option>
           </select>
         </div>
         
@@ -131,9 +131,9 @@
         <div class="form-group">
           <label for="tolerance">Tolerance Standard</label>
           <select id="tolerance" name="tolerance">
-            <option value="GB/T 1804-2000 m级" selected>GB/T 1804-2000 m级</option>
-            <option value="GB/T 1804-2000 f级">GB/T 1804-2000 f级</option>
-            <option value="GB/T 1804-2000 c级">GB/T 1804-2000 c级</option>
+            <option value="GB/T 1804-2000 m" selected>GB/T 1804-2000 m</option>
+            <option value="GB/T 1804-2000 f">GB/T 1804-2000 f</option>
+            <option value="GB/T 1804-2000 c">GB/T 1804-2000 c</option>
           </select>
         </div>
         
@@ -1528,29 +1528,29 @@
            note: formData.note,
            allFiles: allFilesData, // 发送所有文件数据
            lineItems: [{
-             customAttributes: [
-               { key: '材料', value: formData.material },
-               { key: '颜色', value: formData.color },
-               { key: '精度', value: formData.precision },
-               { key: '公差标准', value: formData.tolerance },
-               { key: '表面粗糙度', value: formData.roughness },
-               { key: '是否有螺纹', value: formData.hasThread ? '是' : '否' },
-               { key: '是否有装配标记', value: formData.hasAssembly ? '是' : '否' },
-               { key: '缩放比例', value: formData.scale + '%' },
-               { key: '备注', value: formData.note || '' },
-               { key: '上传文件数量', value: selectedFiles.length.toString() },
-               { key: '文件列表', value: selectedFiles.map(f => f.name).join(', ') },
-               ...selectedFiles.map((file, index) => ({
-                 key: `文件${index + 1}_名称`,
-                 value: file.name
-               }))
-             ]
+            customAttributes: [
+              { key: 'Material', value: formData.material },
+              { key: 'Color / Finish', value: formData.color },
+              { key: 'Precision', value: formData.precision },
+              { key: 'Tolerance Standard', value: formData.tolerance },
+              { key: 'Surface Roughness', value: formData.roughness },
+              { key: 'Threads', value: formData.hasThread ? 'Yes' : 'No' },
+              { key: 'Assembly Features', value: formData.hasAssembly ? 'Yes' : 'No' },
+              { key: 'Scale', value: formData.scale + '%' },
+              { key: 'Notes', value: formData.note || '' },
+              { key: 'Uploaded File Count', value: selectedFiles.length.toString() },
+              { key: 'File List', value: selectedFiles.map(f => f.name).join(', ') },
+              ...selectedFiles.map((file, index) => ({
+                key: `File ${index + 1} Name`,
+                value: file.name
+              }))
+            ]
            }]
          })
        });
        
-       console.log('API响应状态:', response.status);
-       console.log('API响应头:', response.headers);
+      console.log('API response status:', response.status);
+      console.log('API response headers:', response.headers);
       
       const result = await response.json();
       
