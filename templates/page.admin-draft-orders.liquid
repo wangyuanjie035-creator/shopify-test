@@ -887,11 +887,28 @@
   function renderOrders() {
     const ordersList = document.getElementById('orders-list');
     
-    // 先按时间倒序排序（最新的在最上面）
+    // 按订单编号排序（提取编号中的数字部分，如"D403" -> 403）
+    // 编号越大（越新）的订单排在前面
     let sortedOrders = [...currentOrders].sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      return dateB - dateA; // 倒序：最新的在前
+      // 从订单名称中提取数字部分（如"D403" -> 403）
+      const extractNumber = (name) => {
+        if (!name) return 0;
+        const match = name.toString().match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      };
+      
+      const numA = extractNumber(a.name);
+      const numB = extractNumber(b.name);
+      
+      // 如果编号相同，则按创建时间倒序排序
+      if (numA === numB) {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      }
+      
+      // 按订单编号倒序排序（编号大的在前）
+      return numB - numA;
     });
     
     // 状态过滤

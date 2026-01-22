@@ -1425,11 +1425,28 @@ function renderOrdersList(orders) {
   document.getElementById('quote-detail').style.display = 'none';
   document.getElementById('loading-state').style.display = 'none';
   
-  // Sort by created date (newest first)
+  // Sort by order number (extract numeric part from name like "D403" -> 403)
+  // Higher numbers (newer orders) appear first
   const sortedOrders = [...orders].sort((a, b) => {
-    const dateA = new Date(a.createdAt || 0);
-    const dateB = new Date(b.createdAt || 0);
-    return dateB - dateA;
+    // Extract numeric part from order name (e.g., "D403" -> 403)
+    const extractNumber = (name) => {
+      if (!name) return 0;
+      const match = name.toString().match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+    
+    const numA = extractNumber(a.name);
+    const numB = extractNumber(b.name);
+    
+    // If numbers are equal, fall back to creation date
+    if (numA === numB) {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    }
+    
+    // Sort by order number (descending: higher numbers first)
+    return numB - numA;
   });
   
   // Show list container
