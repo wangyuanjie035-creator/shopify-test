@@ -853,7 +853,7 @@ function renderOrderDetails(order) {
 
   // If not manufacturable, show reason/suggestions from Notes
   const unprocessableEl = document.getElementById('unprocessable-reason');
-  if (status.text === 'Not manufacturable' && order.lineItems && order.lineItems.length > 0) {
+  if ((status.text === '无法加工' || status.text === 'Not manufacturable') && order.lineItems && order.lineItems.length > 0) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
     const noteAttr = attrs.find(a => a.key === 'Notes');
@@ -1040,7 +1040,7 @@ function updateButtonState(order) {
   if (order.lineItems && order.lineItems.length > 0) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
-    const statusAttr = attrs.find(a => a.key === 'Status');
+    const statusAttr = attrs.find(a => a.key === 'Status' || a.key === '状态');
     
     if (statusAttr) {
       orderStatus = statusAttr.value;
@@ -1048,9 +1048,9 @@ function updateButtonState(order) {
   }
   
   // Not manufacturable
-  if (orderStatus === 'Not manufacturable') {
+  if (orderStatus === '无法加工' || orderStatus === 'Not manufacturable') {
     placeOrderBtn.disabled = true;
-    placeOrderBtn.textContent = 'Not manufacturable';
+    placeOrderBtn.textContent = '无法加工';
     placeOrderBtn.style.opacity = '0.6';
     placeOrderBtn.style.cursor = 'not-allowed';
     return;
@@ -1090,19 +1090,19 @@ function getOrderStatus(order) {
   if (order.lineItems && order.lineItems.length > 0) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
-    const statusAttr = attrs.find(a => a.key === 'Status');
+    const statusAttr = attrs.find(a => a.key === 'Status' || a.key === '状态');
     
     if (statusAttr) {
       const status = statusAttr.value;
       
-      if (status === 'Quoted') {
+      if (status === '已报价' || status === 'Quoted') {
         return {
-          text: 'Quoted',
+          text: '已报价',
           className: 'status-quoted'
         };
-      } else if (status === 'Not manufacturable') {
+      } else if (status === '无法加工' || status === 'Not manufacturable') {
         return {
-          text: 'Not manufacturable',
+          text: '无法加工',
           className: 'status-rejected'
         };
       }
@@ -1114,12 +1114,12 @@ function getOrderStatus(order) {
   
   if (totalPrice > 0) {
     return {
-      text: 'Quoted',
+      text: '已报价',
       className: 'status-quoted'
     };
   } else {
     return {
-      text: 'Pending',
+      text: '待报价',
       className: 'status-pending'
     };
   }
