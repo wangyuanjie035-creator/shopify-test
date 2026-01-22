@@ -1234,15 +1234,15 @@
       
       for (const item of order.lineItems) {
         const attrs = item.customAttributes || [];
-        const fileIdAttr = attrs.find(a => a.key === '文件ID');
-        const fileNameAttr = attrs.find(a => a.key === '文件') || attrs.find(a => a.key === '文件名');
-        const shopifyFileUrlAttr = attrs.find(a => a.key === 'Shopify文件URL');
-        const shopifyFileIdAttr = attrs.find(a => a.key === 'Shopify文件ID');
-        const fileTypeAttr = attrs.find(a => a.key === '文件类型');
+        const fileIdAttr = attrs.find(a => a.key === 'File ID' || a.key === '文件ID');
+        const fileNameAttr = attrs.find(a => a.key === 'File' || a.key === '文件') || attrs.find(a => a.key === 'File Name' || a.key === '文件名');
+        const shopifyFileUrlAttr = attrs.find(a => a.key === 'Shopify File URL' || a.key === 'Shopify文件URL');
+        const shopifyFileIdAttr = attrs.find(a => a.key === 'Shopify File ID' || a.key === 'Shopify文件ID');
+        const fileTypeAttr = attrs.find(a => a.key === 'File Type' || a.key === '文件类型');
 
         const shopifyFileUrl = shopifyFileUrlAttr ? shopifyFileUrlAttr.value : null;
         const shopifyFileId = shopifyFileIdAttr ? shopifyFileIdAttr.value : null;
-        let fileName = (fileNameAttr && fileNameAttr.value) || item.title || '未知文件';
+        let fileName = (fileNameAttr && fileNameAttr.value) || item.title || 'Unknown file';
         const fileTypeLabel = fileTypeAttr && fileTypeAttr.value === '2D' ? '2D' : '3D';
 
         // 检查是否有任何文件标识符
@@ -1488,7 +1488,7 @@
       const lineItem = pickMainItem(order.lineItems);
       const customAttributes = lineItem?.customAttributes || [];
       
-      let fileName = '未知文件';
+      let fileName = 'Unknown file';
       let fileData = '';
       
       customAttributes.forEach(attr => {
@@ -1606,10 +1606,10 @@
           max-height: 80vh;
           overflow-y: auto;
         ">
-          <h3>文件预览</h3>
-          <p><strong>文件名:</strong> ${fileName}</p>
-          <p><strong>询价单号:</strong> ${order.name}</p>
-          <p><strong>客户邮箱:</strong> ${order.email}</p>
+          <h3>File Preview</h3>
+          <p><strong>File Name:</strong> ${fileName}</p>
+          <p><strong>Quote ID:</strong> ${order.name}</p>
+          <p><strong>Customer Email:</strong> ${order.email}</p>
           <p><strong>创建时间:</strong> ${new Date(order.createdAt).toLocaleString('zh-CN')}</p>
           
           ${paramsHtml ? `
@@ -1715,7 +1715,7 @@
           padding: 20px;
           border-bottom: 1px solid #e9ecef;
         ">
-          <h3 style="margin: 0; color: #333;">客户操作指南</h3>
+          <h3 style="margin: 0; color: #333;">Customer Guide</h3>
           <button onclick="this.closest('.guide-modal').remove()" style="
             background: none;
             border: none;
@@ -1752,7 +1752,7 @@
       if (order && order.lineItems && order.lineItems.length > 0) {
         const customAttributes = order.lineItems[0].customAttributes || [];
         customAttributes.forEach(attr => {
-          if (attr.key === '文件ID' || attr.key === 'fileId') {
+          if (attr.key === 'File ID' || attr.key === '文件ID' || attr.key === 'fileId') {
             fileId = attr.value;
           }
         });
