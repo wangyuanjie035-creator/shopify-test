@@ -1773,16 +1773,18 @@
       };
     }
 
-    // 4. 为每个 3D 文件创建独立的订单
-    const draftOrderIds = [];
+    // 4. 为每个 3D 文件创建独立的订单（并行处理以提升性能）
     const selected3DFileIds = Array.from(selectedFileIds).filter(id => {
       const fileData = fileManager.files.get(id);
       return fileData && is3DFile(fileData.file.name);
     });
 
-    for (const fileId of selected3DFileIds) {
+    // 4.1 并行处理所有3D文件，每个文件创建独立订单
+    const orderPromises = selected3DFileIds.map(async (fileId) => {
       const fileData = fileManager.files.get(fileId);
-      if (!fileData || !is3DFile(fileData.file.name)) continue;
+      if (!fileData || !is3DFile(fileData.file.name)) {
+        return null;
+      }
 
       console.log('📦 Creating independent order for 3D file:', fileData.file.name);
 
@@ -1793,97 +1795,121 @@
         config.surfaceEnabled !== false
       );
 
-      // 4.1 上传 3D 文件到 Shopify Files
-      let threeDMeta;
       try {
-        threeDMeta = await uploadToShopifyFiles(fileData.file);
-      } catch (e) {
-        console.error('❌ 3D file upload failed:', fileData.file.name, e);
-        throw e;
-      }
+        // 4.1.1 查找对应的 2D 图纸
+        const twoDFiles = getCorresponding2DFiles(fileId) || [];
+        console.log(`3D file ${fileData.file.name} linked 2D files:`, twoDFiles.map(f => f.name));
 
-      // 4.2 为该 3D 文件及其对应 2D 文件生成 lineItems
-      const lineItems = [];
+        // 4.1.2 并行上传 3D 文件和所有 2D 文件
+        const uploadPromises = [
+          uploadToShopifyFiles(fileData.file)
+            .then(meta => ({ type: '3D', meta, fileData, success: true }))
+            .catch(e => {
+              console.error('❌ 3D file upload failed:', fileData.file.name, e);
+              return { type: '3D', meta: null, fileData, success: false, error: e };
+            })
+        ];
 
-      // 4.2.1 为 3D 文件创建 lineItem
-      lineItems.push({
-        title: fileData.file.name,
-        quantity: parseInt(config.quantity || 1, 10) || 1,
-        price: 0,
-        requires_shipping: false,
-        customAttributes: [
-          { key: 'Order Type', value: '3D Model Quote' },
-          { key: 'File Type', value: '3D' },
-          { key: 'Customer Name', value: customerInfo.name },
-          { key: 'Customer Email', value: customerInfo.email },
-          { key: 'File Size', value: (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
-          { key: 'Material', value: config.material || 'Not specified' },
-          { key: 'Material Category', value: config.materialCategory || getCategoryForMaterial(config.material) || 'Not specified' },
-          { key: 'Surface Finish', value: surfaceText || 'Not specified' },
-          { key: 'Tightest Tolerance', value: config.tightest || 'GB/T 1804-2000 m' },
-          { key: 'Surface Roughness', value: config.roughness || 'Ra3.2' },
-          { key: 'Threads', value: config.hasThread || 'no' },
-          { key: 'Assembly Features', value: config.hasAssembly || 'no' },
-          { key: 'Notes', value: config.note || '' },
-          { key: 'Quote Status', value: 'Pending' },
-          { key: 'File ID', value: threeDMeta.fileId },
-          { key: 'Shopify File ID', value: threeDMeta.shopifyFileId },
-          { key: 'Shopify File URL', value: threeDMeta.shopifyFileUrl },
-          { key: 'Original File Size', value: String(threeDMeta.originalFileSize || fileData.file.size) },
-          { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
-        ],
-      });
-
-      // 4.2.2 查找对应的 2D 图纸，分别上传并创建 2D lineItem
-      const twoDFiles = getCorresponding2DFiles(fileId) || [];
-      console.log(`3D file ${fileData.file.name} linked 2D files:`, twoDFiles.map(f => f.name));
-
-      for (const twoD of twoDFiles) {
-        const twoDData = fileManager.files.get(twoD.id);
-        if (!twoDData || !twoDData.file) continue;
-
-        let twoDMeta;
-        try {
-          twoDMeta = await uploadToShopifyFiles(twoDData.file);
-        } catch (e) {
-          console.error('❌ 2D file upload failed:', twoDData.file.name, e);
-          continue; // 不阻断整个订单
+        // 添加所有2D文件的上传任务
+        for (const twoD of twoDFiles) {
+          const twoDData = fileManager.files.get(twoD.id);
+          if (twoDData && twoDData.file) {
+            uploadPromises.push(
+              uploadToShopifyFiles(twoDData.file)
+                .then(meta => ({ type: '2D', meta, fileData: twoDData, linked3D: fileData.file.name, success: true }))
+                .catch(e => {
+                  console.error('❌ 2D file upload failed:', twoDData.file.name, e);
+                  return { type: '2D', meta: null, fileData: twoDData, linked3D: fileData.file.name, success: false, error: e };
+                })
+            );
+          }
         }
 
+        // 等待所有文件上传完成
+        const uploadResults = await Promise.all(uploadPromises);
+        
+        // 分离3D和2D文件的上传结果
+        const threeDUpload = uploadResults.find(r => r && r.type === '3D' && r.success);
+        const twoDUploads = uploadResults.filter(r => r && r.type === '2D' && r.success);
+
+        if (!threeDUpload || !threeDUpload.meta) {
+          throw new Error(`3D file upload failed for ${fileData.file.name}`);
+        }
+
+        const threeDMeta = threeDUpload.meta;
+
+        // 4.2 为该 3D 文件及其对应 2D 文件生成 lineItems
+        const lineItems = [];
+
+        // 4.2.1 为 3D 文件创建 lineItem
         lineItems.push({
-          title: twoDData.file.name,
-          quantity: 1,
+          title: fileData.file.name,
+          quantity: parseInt(config.quantity || 1, 10) || 1,
           price: 0,
           requires_shipping: false,
           customAttributes: [
-            { key: 'Order Type', value: '2D Drawing' },
-            { key: 'File Type', value: '2D' },
-            { key: 'Linked 3D File', value: fileData.file.name },
+            { key: 'Order Type', value: '3D Model Quote' },
+            { key: 'File Type', value: '3D' },
             { key: 'Customer Name', value: customerInfo.name },
             { key: 'Customer Email', value: customerInfo.email },
-            { key: 'File Size', value: (twoDData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
+            { key: 'File Size', value: (fileData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
+            { key: 'Material', value: config.material || 'Not specified' },
+            { key: 'Material Category', value: config.materialCategory || getCategoryForMaterial(config.material) || 'Not specified' },
+            { key: 'Surface Finish', value: surfaceText || 'Not specified' },
+            { key: 'Tightest Tolerance', value: config.tightest || 'GB/T 1804-2000 m' },
+            { key: 'Surface Roughness', value: config.roughness || 'Ra3.2' },
+            { key: 'Threads', value: config.hasThread || 'no' },
+            { key: 'Assembly Features', value: config.hasAssembly || 'no' },
             { key: 'Notes', value: config.note || '' },
-            { key: 'File ID', value: twoDMeta.fileId },
-            { key: 'Shopify File ID', value: twoDMeta.shopifyFileId },
-            { key: 'Shopify File URL', value: twoDMeta.shopifyFileUrl },
-            { key: 'Original File Size', value: String(twoDMeta.originalFileSize || twoDData.file.size) },
+            { key: 'Quote Status', value: 'Pending' },
+            { key: 'File ID', value: threeDMeta.fileId },
+            { key: 'Shopify File ID', value: threeDMeta.shopifyFileId },
+            { key: 'Shopify File URL', value: threeDMeta.shopifyFileUrl },
+            { key: 'Original File Size', value: String(threeDMeta.originalFileSize || fileData.file.size) },
             { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
           ],
         });
-      }
 
-      console.log(`Creating order for ${fileData.file.name}; lineItems:`, lineItems.length);
+        // 4.2.2 为所有成功上传的 2D 文件创建 lineItem
+        for (const twoDUpload of twoDUploads) {
+          if (!twoDUpload || !twoDUpload.success || !twoDUpload.meta) continue;
 
-      // 4.3 为该 3D 文件创建独立的草稿订单
-      const requestBody = {
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        fileName: fileData.file.name,
-        lineItems,
-        fileUrl: null, // 文件都走 store-file-real，不再用单个 fileUrl
-      };
+          const twoDData = twoDUpload.fileData;
+          const twoDMeta = twoDUpload.meta;
 
-      try {
+          lineItems.push({
+            title: twoDData.file.name,
+            quantity: 1,
+            price: 0,
+            requires_shipping: false,
+            customAttributes: [
+              { key: 'Order Type', value: '2D Drawing' },
+              { key: 'File Type', value: '2D' },
+              { key: 'Linked 3D File', value: twoDUpload.linked3D },
+              { key: 'Customer Name', value: customerInfo.name },
+              { key: 'Customer Email', value: customerInfo.email },
+              { key: 'File Size', value: (twoDData.file.size / 1024 / 1024).toFixed(2) + ' MB' },
+              { key: 'Notes', value: config.note || '' },
+              { key: 'File ID', value: twoDMeta.fileId },
+              { key: 'Shopify File ID', value: twoDMeta.shopifyFileId },
+              { key: 'Shopify File URL', value: twoDMeta.shopifyFileUrl },
+              { key: 'Original File Size', value: String(twoDMeta.originalFileSize || twoDData.file.size) },
+              { key: '_uuid', value: Date.now() + '-' + Math.random().toString(36).substr(2, 9) }
+            ],
+          });
+        }
+
+        console.log(`Creating order for ${fileData.file.name}; lineItems:`, lineItems.length);
+
+        // 4.3 为该 3D 文件创建独立的草稿订单
+        const requestBody = {
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          fileName: fileData.file.name,
+          lineItems,
+          fileUrl: null, // 文件都走 store-file-real，不再用单个 fileUrl
+        };
+
         const response = await fetch(`${API_BASE}/submit-quote-real`, {
           method: 'POST',
           headers: {
@@ -1904,16 +1930,23 @@
         console.log(`✅ Draft order created successfully (${fileData.file.name}):`, result);
 
         if (result.draftOrderId) {
-          draftOrderIds.push(result.draftOrderId);
+          return result.draftOrderId;
         } else {
           console.warn(`⚠️ API response does not contain draftOrderId (${fileData.file.name}):`, result);
+          return null;
         }
       } catch (error) {
         console.error(`❌ Failed to create order (${fileData.file.name}):`, error);
-        // 继续处理下一个文件，不中断整个流程
-        continue;
+        // 返回null，后续过滤掉失败的订单
+        return null;
       }
-    }
+    });
+
+    // 等待所有订单创建完成（并行执行）
+    const orderResults = await Promise.all(orderPromises);
+    
+    // 过滤掉失败的订单（null值）
+    const draftOrderIds = orderResults.filter(id => id !== null);
 
     if (draftOrderIds.length === 0) {
       throw new Error('No draft orders were successfully created');
