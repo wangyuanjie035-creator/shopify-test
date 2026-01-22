@@ -174,30 +174,9 @@ export default async function handler(req, res) {
     // 设置价格：无法加工时为0，否则使用传入的amount 作为【总价】
     const quantity = firstLineItem.quantity || 1;
     const finalAmount = orderStatus === '无法加工' ? 0 : amount; // 订单总价
-    
-    // 处理单价：避免浮点数精度问题
-    let unitPrice = 0;
-    if (orderStatus !== '无法加工' && amount !== undefined && amount !== null) {
-      // 将amount转换为字符串，然后进行精确的数值处理
-      const amountStr = typeof amount === 'string' ? amount : amount.toString();
-      const amountNum = parseFloat(amountStr);
-      
-      // 计算单价：如果总价是整数且数量是1，单价保持整数；否则保留足够精度
-      if (quantity === 1) {
-        unitPrice = amountNum; // 数量为1时，单价等于总价，保持原始值
-      } else {
-        // 数量大于1时，需要除法，但保持精度
-        // 先计算，然后根据原始输入是否有小数来决定显示格式
-        const calculated = amountNum / quantity;
-        // 如果原始输入是整数，尝试保持整数（如果除法结果是整数）
-        if (Number.isInteger(amountNum) && Number.isInteger(calculated)) {
-          unitPrice = calculated;
-        } else {
-          // 否则保留足够的小数位，但去除末尾的0
-          unitPrice = parseFloat(calculated.toFixed(10));
-        }
-      }
-    }
+    const unitPrice = orderStatus === '无法加工'
+      ? 0
+      : (amount / quantity); // 平均到每件，避免被数量再次放大
     
     // 构建更新后的 lineItems 数组，保留所有 lineItems
     const updatedLineItems = allLineItems.map((lineItem, index) => {
@@ -220,12 +199,8 @@ export default async function handler(req, res) {
           // 无法加工时，价格设为0，不设置报价金额
           updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
         } else {
-          // 正常报价时，设置报价金额（保持原始输入值，避免精度问题）
-          const amountStr = typeof amount === 'string' ? amount : amount.toString();
-          // 如果输入是整数，显示整数；如果有小数，保留原始小数位（去除末尾的0）
-          const amountNum = parseFloat(amountStr);
-          const displayAmount = Number.isInteger(amountNum) ? amountNum.toString() : amountNum.toString().replace(/\.?0+$/, '');
-          updatedAttributes.push({ key: "报价金额", value: `¥${displayAmount}` });
+          // 正常报价时，设置报价金额
+          updatedAttributes.push({ key: "报价金额", value: `¥${amount}` });
           updatedAttributes.push({ key: "报价时间", value: new Date().toISOString() });
         }
         
@@ -243,11 +218,8 @@ export default async function handler(req, res) {
           title: lineItem.title,
           quantity: lineItem.quantity,
           // Shopify 的 total = originalUnitPrice * quantity，所以这里用总价 / 数量
-          // 保持精度：如果单价是整数，显示整数；否则保留原始小数位
-          originalUnitPrice: (orderStatus === '无法加工' ? '0' : 
-            (Number.isInteger(unitPrice) 
-              ? unitPrice.toString() 
-              : unitPrice.toString().replace(/\.?0+$/, ''))),
+          // 使用 toFixed(2) 确保固定两位小数，避免Shopify精度问题
+          originalUnitPrice: unitPrice.toFixed(2),
           customAttributes: updatedAttributes
         };
       } else {
@@ -266,13 +238,7 @@ export default async function handler(req, res) {
       lineItems: updatedLineItems, // 包含所有 lineItems，确保2D文件不被删除
       note: orderStatus === '无法加工' 
         ? `无法加工\n时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`
-        : (() => {
-            const amountStr = typeof amount === 'string' ? amount : amount.toString();
-            const amountNum = parseFloat(amountStr);
-            const displayAmount = Number.isInteger(amountNum) ? amountNum.toString() : amountNum.toString().replace(/\.?0+$/, '');
-            const displayUnitPrice = Number.isInteger(unitPrice) ? unitPrice.toString() : unitPrice.toString().replace(/\.?0+$/, '');
-            return `已报价总价: ¥${displayAmount}\n折算单价: ¥${displayUnitPrice}\n报价时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`;
-          })()
+        : `已报价总价: ¥${amount}\n折算单价: ¥${unitPrice.toFixed(2)}\n报价时间: ${new Date().toLocaleString('zh-CN')}\n${note || ''}`
     };
     
     const updateResult = await shopGql(updateMutation, {
