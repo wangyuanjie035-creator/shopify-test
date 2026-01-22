@@ -790,14 +790,14 @@
       const statusAttr = attrs.find(a => a.key === 'Status' || a.key === '状态');
       if (statusAttr && statusAttr.value) {
         const statusValue = statusAttr.value.toString().trim();
-        // Keep original status value (Chinese or English) as stored
-        if (statusValue === '无法加工' || statusValue === 'Not manufacturable') return '无法加工';
-        if (statusValue === '已报价' || statusValue === 'Quoted') return '已报价';
-        if (statusValue === '待报价' || statusValue === 'Pending') return '待报价';
+        // Check for not manufacturable status (both Chinese and English)
+        if (statusValue === '无法加工' || statusValue === 'Not manufacturable') return 'Not manufacturable';
+        if (statusValue === '已报价' || statusValue === 'Quoted') return 'Quoted';
+        if (statusValue === '待报价' || statusValue === 'Pending') return 'Pending';
         return statusValue; // Return original value
       }
     }
-    return order.status === 'pending' ? '待报价' : '已报价';
+    return order.status === 'pending' ? 'Pending' : 'Quoted';
   }
 
 

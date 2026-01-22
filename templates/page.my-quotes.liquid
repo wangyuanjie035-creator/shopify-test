@@ -853,10 +853,10 @@ function renderOrderDetails(order) {
 
   // If not manufacturable, show reason/suggestions from Notes
   const unprocessableEl = document.getElementById('unprocessable-reason');
-  if ((status.text === '无法加工' || status.text === 'Not manufacturable') && order.lineItems && order.lineItems.length > 0) {
+  if (status.text === 'Not manufacturable' && order.lineItems && order.lineItems.length > 0) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
-    const noteAttr = attrs.find(a => a.key === 'Notes');
+    const noteAttr = attrs.find(a => a.key === 'Notes' || a.key === '备注');
 
     if (noteAttr && noteAttr.value) {
       // Notes format example:
@@ -870,13 +870,21 @@ function renderOrderDetails(order) {
 
       try {
         const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const reasonLine = lines.find(l => /^Reason\b/i.test(l));
-        const suggestionLine = lines.find(l => /^Suggested changes?\b/i.test(l));
+        // Support both English and Chinese labels
+        const reasonLine = lines.find(l => /^(Reason|原因)[:：]?\s*/i.test(l));
+        const suggestionLine = lines.find(l => /^(Suggested changes?|修改建议|建议)[:：]?\s*/i.test(l));
         if (reasonLine) {
-          reasonText = reasonLine.replace(/^Reason[:：]?\s*/i, '');
+          reasonText = reasonLine.replace(/^(Reason|原因)[:：]?\s*/i, '');
         }
         if (suggestionLine) {
-          suggestionText = suggestionLine.replace(/^Suggested changes?[:：]?\s*/i, '');
+          suggestionText = suggestionLine.replace(/^(Suggested changes?|修改建议|建议)[:：]?\s*/i, '');
+        }
+        // If no structured format found, try to extract from "Not manufacturable\n\nReason: ...\nSuggested changes: ..." format
+        if (!reasonText && !suggestionText) {
+          const reasonMatch = raw.match(/(?:Reason|原因)[:：]?\s*(.+?)(?:\n|$)/i);
+          const suggestionMatch = raw.match(/(?:Suggested changes?|修改建议|建议)[:：]?\s*(.+?)(?:\n|$)/i);
+          if (reasonMatch) reasonText = reasonMatch[1].trim();
+          if (suggestionMatch) suggestionText = suggestionMatch[1].trim();
         }
       } catch (e) {
         console.warn('Failed to parse Notes for not-manufacturable banner; using raw text:', e);
@@ -1050,7 +1058,7 @@ function updateButtonState(order) {
   // Not manufacturable
   if (orderStatus === '无法加工' || orderStatus === 'Not manufacturable') {
     placeOrderBtn.disabled = true;
-    placeOrderBtn.textContent = '无法加工';
+    placeOrderBtn.textContent = 'Not manufacturable';
     placeOrderBtn.style.opacity = '0.6';
     placeOrderBtn.style.cursor = 'not-allowed';
     return;
@@ -1059,7 +1067,7 @@ function updateButtonState(order) {
   // Determine if quoted
   let isQuoted = false;
   
-  if (orderStatus === 'Quoted') {
+  if (orderStatus === 'Quoted' || orderStatus === '已报价') {
     isQuoted = true;
   }
   
@@ -1095,15 +1103,17 @@ function getOrderStatus(order) {
     if (statusAttr) {
       const status = statusAttr.value;
       
+      // Check for not manufacturable status first (both Chinese and English)
+      if (status === '无法加工' || status === 'Not manufacturable') {
+        return {
+          text: 'Not manufacturable',
+          className: 'status-rejected'
+        };
+      }
       if (status === '已报价' || status === 'Quoted') {
         return {
-          text: '已报价',
+          text: 'Quoted',
           className: 'status-quoted'
-        };
-      } else if (status === '无法加工' || status === 'Not manufacturable') {
-        return {
-          text: '无法加工',
-          className: 'status-rejected'
         };
       }
     }
@@ -1114,12 +1124,12 @@ function getOrderStatus(order) {
   
   if (totalPrice > 0) {
     return {
-      text: '已报价',
+      text: 'Quoted',
       className: 'status-quoted'
     };
   } else {
     return {
-      text: '待报价',
+      text: 'Pending',
       className: 'status-pending'
     };
   }
