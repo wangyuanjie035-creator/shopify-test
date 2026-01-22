@@ -172,11 +172,33 @@ export default async function handler(req, res) {
     const orderStatus = isNotManufacturable ? '无法加工' : '已报价';
     
     // 设置价格：无法加工时为0，否则使用传入的amount 作为【总价】
+    // 用户输入的金额就是最终总价（已经考虑了数量），不管数量是多少，总价都是用户输入的金额
     const quantity = firstLineItem.quantity || 1;
     const finalAmount = orderStatus === '无法加工' ? 0 : amount; // 订单总价
-    const unitPrice = orderStatus === '无法加工'
-      ? 0
-      : (amount / quantity); // 平均到每件，避免被数量再次放大
+    
+    // Shopify需要设置单价（originalUnitPrice），然后自动计算总价 = 单价 × 数量
+    // 这是Shopify API的限制，无法直接设置总价
+    // 为了确保总价精确等于用户输入的金额，需要精确计算单价
+    let unitPrice = 0;
+    if (orderStatus !== '无法加工') {
+      const amountNum = typeof amount === 'string' ? parseFloat(amount) : amount;
+      
+      if (quantity === 1) {
+        // 数量为1时，单价直接等于总价，完全避免任何计算，确保无误差
+        unitPrice = amountNum;
+      } else {
+        // 数量大于1时，必须计算单价（Shopify的要求）
+        // 使用精确的数学运算：将总价转换为分（cents），除以数量，再转换回元
+        // 这样可以最大程度减少浮点数精度问题
+        const amountInCents = Math.round(amountNum * 100); // 转换为分（整数，避免浮点数）
+        const unitPriceInCents = Math.round(amountInCents / quantity); // 计算单价（分）
+        unitPrice = unitPriceInCents / 100; // 转换回元
+        
+        // 注意：如果总价不能被数量整除，Shopify计算的总价可能会有0.01的误差
+        // 这是数学上的限制，无法完全避免
+        // 例如：385 / 3 = 128.33...，四舍五入到128.33，然后128.33 × 3 = 384.99
+      }
+    }
     
     // 构建更新后的 lineItems 数组，保留所有 lineItems
     const updatedLineItems = allLineItems.map((lineItem, index) => {
@@ -214,12 +236,25 @@ export default async function handler(req, res) {
           updatedAttributes.push({ key: "客服邮箱", value: senderEmail });
         }
         
+        // 设置单价：Shopify需要单价，然后自动计算总价 = 单价 × 数量
+        let formattedUnitPrice = '0.00';
+        if (orderStatus !== '无法加工') {
+          if (quantity === 1) {
+            // 数量为1时，单价直接等于总价，使用原始输入值，完全避免计算误差
+            const amountNum = typeof amount === 'string' ? parseFloat(amount) : amount;
+            formattedUnitPrice = amountNum.toFixed(2);
+          } else {
+            // 数量大于1时，使用计算后的单价
+            formattedUnitPrice = unitPrice.toFixed(2);
+          }
+        }
+        
         return {
           title: lineItem.title,
           quantity: lineItem.quantity,
-          // Shopify 的 total = originalUnitPrice * quantity，所以这里用总价 / 数量
-          // 使用 toFixed(2) 确保固定两位小数，避免Shopify精度问题
-          originalUnitPrice: unitPrice.toFixed(2),
+          // Shopify 的 total = originalUnitPrice * quantity
+          // 确保格式正确，避免Shopify精度问题
+          originalUnitPrice: formattedUnitPrice,
           customAttributes: updatedAttributes
         };
       } else {
