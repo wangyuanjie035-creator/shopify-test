@@ -785,19 +785,28 @@
 
   // Status label for UI
   function getOrderStatusText(order) {
+    // First check customAttributes for status (this is the source of truth)
     if (order.lineItems && order.lineItems.length > 0) {
       const attrs = order.lineItems[0].customAttributes || [];
       const statusAttr = attrs.find(a => a.key === 'Status' || a.key === '状态');
       if (statusAttr && statusAttr.value) {
         const statusValue = statusAttr.value.toString().trim();
-        // Check for not manufacturable status (both Chinese and English)
-        if (statusValue === '无法加工' || statusValue === 'Not manufacturable') return 'Not manufacturable';
-        if (statusValue === '已报价' || statusValue === 'Quoted') return 'Quoted';
-        if (statusValue === '待报价' || statusValue === 'Pending') return 'Pending';
+        // Check for not manufacturable status FIRST (both Chinese and English)
+        if (statusValue === '无法加工' || statusValue === 'Not manufacturable') {
+          return 'Not manufacturable';
+        }
+        if (statusValue === '已报价' || statusValue === 'Quoted') {
+          return 'Quoted';
+        }
+        if (statusValue === '待报价' || statusValue === 'Pending') {
+          return 'Pending';
+        }
         return statusValue; // Return original value
       }
     }
-    return order.status === 'pending' ? 'Pending' : 'Quoted';
+    // Fallback: only use order.status if no customAttribute status found
+    // But never return 'Quoted' if we haven't checked customAttributes
+    return order.status === 'pending' ? 'Pending' : 'Pending';
   }
 
 
