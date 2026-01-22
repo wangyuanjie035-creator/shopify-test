@@ -768,7 +768,7 @@ async function refreshOrderStatus() {
       }
     }
   } catch (error) {
-    console.warn('⚠️ Failed to refresh quote status:', error);
+    // Failed to refresh quote status
   }
 }
 
@@ -857,14 +857,6 @@ function renderOrderDetails(order) {
     const firstItem = order.lineItems[0];
     const attrs = firstItem.customAttributes || [];
     
-    // 调试：打印所有 customAttributes 和订单信息
-    console.log('🔍 Checking for not-manufacturable reason:', {
-      status: status.text,
-      customAttributes: attrs,
-      orderNote: order.note,
-      allAttrs: attrs.map(a => ({ key: a.key, value: a.value }))
-    });
-    
     // 查找备注属性（支持中英文键名，包括所有可能的变体）
     // 优先查找中文"备注"键，因为这是实际保存的键名
     const noteAttr = attrs.find(a => {
@@ -878,36 +870,24 @@ function renderOrderDetails(order) {
              key === '备注信息' || key === '备注内容';
     });
     
-    console.log('📝 Found note attribute:', noteAttr);
-    console.log('📝 All attributes with "备注" or "Notes":', 
-      attrs.filter(a => {
-        const key = (a.key || '').toLowerCase();
-        return key.includes('备注') || key.includes('note');
-      }).map(a => ({ key: a.key, value: a.value, valueLength: (a.value || '').length }))
-    );
-    
     // 也检查订单级别的 note 字段
     let noteValue = null;
     if (noteAttr && noteAttr.value && noteAttr.value.trim()) {
       noteValue = noteAttr.value;
-      console.log('✅ Using note from customAttributes:', noteValue);
     } else if (order.note && order.note.trim()) {
       // 如果 customAttributes 中没有，尝试从订单级别的 note 字段读取
       noteValue = order.note;
-      console.log('✅ Using note from order.note:', noteValue);
     } else {
       // 如果都没找到，尝试查找所有包含备注的键
       const allNoteAttrs = attrs.filter(a => {
         const key = (a.key || '').toLowerCase();
         return key.includes('备注') || key.includes('note');
       });
-      console.warn('⚠️ No valid note found. All note-related attributes:', allNoteAttrs);
       
       // 尝试从所有可能的备注键中找到一个有值的
       for (const attr of allNoteAttrs) {
         if (attr.value && attr.value.trim()) {
           noteValue = attr.value;
-          console.log('✅ Found note in alternative attribute:', attr.key, noteValue);
           break;
         }
       }
@@ -924,29 +904,19 @@ function renderOrderDetails(order) {
       let suggestionText = '';
 
       try {
-        console.log('🔍 Parsing note value:', raw);
-        
         // 方法1: 先尝试从多行格式中提取（保留空行以保持结构）
         const allLines = raw.split(/\r?\n/);
         const lines = allLines.map(l => l.trim()).filter(Boolean);
-        
-        console.log('📄 All lines:', allLines);
-        console.log('📄 Filtered lines:', lines);
         
         // Support both English and Chinese labels
         const reasonLine = lines.find(l => /^(Reason|原因)[:：]?\s*/i.test(l));
         const suggestionLine = lines.find(l => /^(Suggested changes?|修改建议|建议)[:：]?\s*/i.test(l));
         
-        console.log('🔍 Found reasonLine:', reasonLine);
-        console.log('🔍 Found suggestionLine:', suggestionLine);
-        
         if (reasonLine) {
           reasonText = reasonLine.replace(/^(Reason|原因)[:：]?\s*/i, '').trim();
-          console.log('✅ Extracted reasonText:', reasonText);
         }
         if (suggestionLine) {
           suggestionText = suggestionLine.replace(/^(Suggested changes?|修改建议|建议)[:：]?\s*/i, '').trim();
-          console.log('✅ Extracted suggestionText:', suggestionText);
         }
         
         // 方法2: 如果从行中没找到，尝试用正则表达式从整个文本中提取
@@ -955,7 +925,6 @@ function renderOrderDetails(order) {
           const reasonMatch = raw.match(/(?:Reason|原因)[:：]?\s*([^\n]+?)(?:\n\s*(?:Suggested|修改|建议)|$)/is);
           if (reasonMatch && reasonMatch[1]) {
             reasonText = reasonMatch[1].trim();
-            console.log('✅ Extracted reasonText from regex:', reasonText);
           }
         }
         if (!suggestionText) {
@@ -963,7 +932,6 @@ function renderOrderDetails(order) {
           const suggestionMatch = raw.match(/(?:Suggested changes?|修改建议|建议)[:：]?\s*([\s\S]+?)$/i);
           if (suggestionMatch && suggestionMatch[1]) {
             suggestionText = suggestionMatch[1].trim();
-            console.log('✅ Extracted suggestionText from regex:', suggestionText);
           }
         }
         
@@ -972,11 +940,10 @@ function renderOrderDetails(order) {
           const reasonMatch = raw.match(/(?:Reason|原因)[:：]?\s*([\s\S]+?)(?:\n\s*(?:Suggested|修改|建议)|$)/i);
           if (reasonMatch && reasonMatch[1]) {
             reasonText = reasonMatch[1].trim();
-            console.log('✅ Extracted reasonText from loose regex:', reasonText);
           }
         }
       } catch (e) {
-        console.error('❌ Failed to parse Notes for not-manufacturable banner:', e);
+        console.error('Failed to parse Notes for not-manufacturable banner:', e);
       }
 
       // 如果解析失败，使用原始文本（去除开头的 "Not manufacturable" 等）
@@ -1005,8 +972,6 @@ function renderOrderDetails(order) {
           finalReason = cleanedRaw || raw;
         }
       }
-
-      console.log('📋 Final parsed values:', { finalReason, finalSuggestion, raw });
 
       unprocessableEl.innerHTML = `
         <div class="unprocessable-banner-title">
