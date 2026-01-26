@@ -30,8 +30,18 @@ function parseAdminList() {
 }
 
 export default async function handler(req, res) {
-  // 设置CORS头 - 允许Shopify域名
-  res.setHeader('Access-Control-Allow-Origin', 'https://sain-pdc-test.myshopify.com');
+  // 设置CORS头 - 允许指定的Shopify域名列表
+  const allowedOrigins = [
+    'https://sain-pdc-test.myshopify.com',
+    'https://happy-july.myshopify.com',
+    // 可以在这里添加更多允许的域名
+  ];
+  
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
   res.setHeader('Access-Control-Allow-Methods', 'POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');

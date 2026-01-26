@@ -3,13 +3,14 @@
  */
 
 export function setCorsHeaders(req, res) {
-  // Allowed origins (Shopify store + local dev)
-  const allowedOrigins = new Set([
+  // 设置CORS头 - 允许指定的Shopify域名列表
+  const allowedOrigins = [
     'https://sain-pdc-test.myshopify.com',
+    'https://happy-july.myshopify.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'null',
-  ]);
+    // 可以在这里添加更多允许的域名
+  ];
 
   // Prefer Origin; fallback to Referer
   const headerOrigin = req.headers.origin || '';
@@ -22,7 +23,7 @@ export function setCorsHeaders(req, res) {
   }
 
   // Echo allowed origin; default to store domain
-  const allow = allowedOrigins.has(origin) ? origin : 'https://sain-pdc-test.myshopify.com';
+  const allow = allowedOrigins.includes(origin) ? origin : 'https://sain-pdc-test.myshopify.com';
   res.setHeader('Access-Control-Allow-Origin', allow);
   res.setHeader('Vary', 'Origin');
 
