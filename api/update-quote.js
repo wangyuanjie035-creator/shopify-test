@@ -68,22 +68,11 @@ async function shopGql(query, variables) {
 // ─────────────────────────────────────────────────────────────
 // 主处理函数
 // ─────────────────────────────────────────────────────────────
+import { setCorsHeaders } from '../utils/cors-config.js';
+
 export default async function handler(req, res) {
-  // 设置CORS头 - 允许指定的Shopify域名列表
-  const allowedOrigins = [
-    'https://sain-pdc-test.myshopify.com',
-    'https://happy-july.myshopify.com',
-    // 可以在这里添加更多允许的域名
-  ];
-  
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // 设置CORS头 - 使用统一配置
+  setCorsHeaders(req, res, 'POST,OPTIONS');
   
   // 处理 OPTIONS 预检请求
   if (req.method === 'OPTIONS') {

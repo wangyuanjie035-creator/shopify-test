@@ -4,6 +4,9 @@
   lang="{{ request.locale.iso_code }}"
 >
   <head>
+    <script>
+      window.shopUrl = '{{ request.origin }}';
+    </script>
     {%- render 'stylesheets' -%}
 
     {%- if settings.favicon != blank -%}
