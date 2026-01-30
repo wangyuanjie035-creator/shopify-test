@@ -34,6 +34,42 @@ async function shopGql(query, variables) {
   return json;
 }
 
+// Helper: get draft order note using REST API
+async function getDraftOrderNote(draftOrderId) {
+  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN || process.env.SHOP;
+  const accessToken = process.env.SHOPIFY_ACCESS_TOKEN || process.env.ADMIN_TOKEN;
+  
+  if (!storeDomain || !accessToken) {
+    return '';
+  }
+  
+  // Extract numeric ID from GID (e.g., "gid://shopify/DraftOrder/123456" -> "123456")
+  const numericId = draftOrderId.replace(/\D/g, '');
+  if (!numericId) {
+    return '';
+  }
+  
+  try {
+    const restEndpoint = `https://${storeDomain}/admin/api/2024-01/draft_orders/${numericId}.json`;
+    const resp = await fetch(restEndpoint, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+    });
+    
+    if (resp.ok) {
+      const data = await resp.json();
+      return data.draft_order?.note || '';
+    }
+  } catch (error) {
+    console.warn('Failed to fetch note from REST API:', error.message);
+  }
+  
+  return '';
+}
+
 import { handleCors, getAdminEmails } from './cors-config.js';
 
 export default async function handler(req, res) {
@@ -83,7 +119,6 @@ export default async function handler(req, res) {
             status
             createdAt
             invoiceUrl
-            note
             lineItems(first: 10) {
               edges {
                 node {
@@ -112,6 +147,11 @@ export default async function handler(req, res) {
           message: 'This quote does not belong to the current account.'
         });
       }
+      
+      // Fetch note using REST API if GraphQL doesn't provide it
+      if (draftOrder && !draftOrder.note) {
+        draftOrder.note = await getDraftOrderNote(draftOrder.id);
+      }
     } else {
       // If id is a name, search first then query
       const searchQuery = `
@@ -125,7 +165,6 @@ export default async function handler(req, res) {
                 totalPrice
                 status
                 createdAt
-                note
                 lineItems(first: 5) {
                   edges {
                     node {
@@ -156,6 +195,10 @@ export default async function handler(req, res) {
       
       if (result.data.draftOrders.edges.length > 0) {
         draftOrder = result.data.draftOrders.edges[0].node;
+        // Fetch note using REST API if GraphQL doesn't provide it
+        if (draftOrder && !draftOrder.note) {
+          draftOrder.note = await getDraftOrderNote(draftOrder.id);
+        }
       }
     }
     

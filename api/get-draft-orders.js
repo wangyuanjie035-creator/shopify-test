@@ -123,6 +123,35 @@ export default async function handler(req, res) {
       });
     }
 
+    // Helper: get draft order note using REST API
+    const getDraftOrderNote = async (draftOrderId) => {
+      // Extract numeric ID from GID (e.g., "gid://shopify/DraftOrder/123456" -> "123456")
+      const numericId = draftOrderId.replace(/\D/g, '');
+      if (!numericId) {
+        return '';
+      }
+      
+      try {
+        const restEndpoint = `https://${storeDomain}/admin/api/2024-01/draft_orders/${numericId}.json`;
+        const resp = await fetch(restEndpoint, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': accessToken,
+          },
+        });
+        
+        if (resp.ok) {
+          const data = await resp.json();
+          return data.draft_order?.note || '';
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch note for order ${draftOrderId}:`, error.message);
+      }
+      
+      return '';
+    };
+
     // GraphQL查询
     const query = `
       query getDraftOrders($first: Int!, $search: String!) {
@@ -137,7 +166,6 @@ export default async function handler(req, res) {
               updatedAt
               status
               invoiceUrl
-              note
               lineItems(first: 10) {
                 edges {
                   node {
@@ -197,8 +225,8 @@ export default async function handler(req, res) {
       throw new Error(`GraphQL错误: ${data.errors[0].message}`);
     }
 
-    // 处理响应数据
-    const draftOrders = data.data.draftOrders.edges.map(edge => {
+    // 处理响应数据 - 使用 Promise.all 并行获取所有订单的 note
+    const draftOrdersPromises = data.data.draftOrders.edges.map(async (edge) => {
       const order = edge.node;
       
       // 从第一个lineItem的customAttributes中提取文件ID和文件数据
@@ -231,6 +259,9 @@ export default async function handler(req, res) {
         }
       }
 
+      // 使用 REST API 获取 note 字段
+      const note = await getDraftOrderNote(order.id);
+
       return {
         id: order.id,
         name: order.name,
@@ -242,7 +273,7 @@ export default async function handler(req, res) {
         invoiceUrl: order.invoiceUrl || 'data:stored',
         fileId: fileId, // 添加文件ID
         fileData: fileData, // 添加文件数据
-        note: order.note, // 添加note字段
+        note: note, // 使用 REST API 获取的 note 字段
         lineItems: order.lineItems.edges.map(itemEdge => ({
           id: itemEdge.node.id,
           title: itemEdge.node.title,
@@ -252,6 +283,8 @@ export default async function handler(req, res) {
         }))
       };
     });
+    
+    const draftOrders = await Promise.all(draftOrdersPromises);
 
     // 按邮箱兜底过滤，防止意外漏出（管理员除外）
     let filteredOrders = isAdminRequest
