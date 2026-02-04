@@ -2273,7 +2273,7 @@
     // 尝试从Shopify获取客户信息
     if (window.Shopify && window.Shopify.customer) {
       const customer = window.Shopify.customer;
-      const email = customer.email || '';
+      const email = (customer.email || '').trim().toLowerCase();
       
       // 验证邮箱格式
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
