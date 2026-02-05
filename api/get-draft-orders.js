@@ -197,10 +197,10 @@ export default async function handler(req, res) {
         query: query,
         variables: { 
           first: parseInt(limit), 
-          // 管理端允许查看全部；普通用户获取所有订单，由应用层按邮箱过滤（第290-292行）
+          // 管理端允许查看全部；普通用户按邮箱过滤
           search: isAdminRequest
             ? (status && status !== 'all' ? `status:${status}` : '')
-            : ''  // 普通用户不使用GraphQL搜索（email搜索可能不支持），改为空字符串获取所有订单，然后在应用层过滤
+            : `email:"${requesterEmail}"`
         }
       })
     });
